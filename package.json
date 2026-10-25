@@ -18,5 +18,8 @@
   },
   "devDependencies": {
     "esbuild": "0.25.0"
+  },
+  "overrides": {
+    "zod": "4.6.7"
   }
 }
