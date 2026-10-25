@@ -6,12 +6,16 @@ import * as A from '../lib/ai-control.js';
 import {sha,DAY,cleanup} from '../lib/core.js';
 import {inputImage,imagePNG} from '../lib/ai-images.js';
 import {requestFootballEdit,IMAGE_MODEL} from '../lib/ai-provider.js';
+import {createAIHandler} from '../lib/ai-handler.js';
+import {token} from '../lib/core.js';
 class Store{
   constructor(){this.rows=new Map();this.images=new Map();this.version=0;}
   async read(key){return this.rows.has(key)?structuredClone(this.rows.get(key)):null;}
   async write(key,data,{etag}={}){const old=this.rows.get(key);if(old?old.etag!==etag:!!etag){const e=Error('Conflict');e.conflict=true;throw e;}this.rows.set(key,{data:structuredClone(data),etag:String(++this.version),uploadedAt:new Date()});}
   async list(prefix){return [...this.images].filter(([key])=>key.startsWith(prefix)).map(([pathname,r])=>({pathname,uploadedAt:r.uploadedAt}));}
   async remove(path){this.rows.delete(path);this.images.delete(path);}
+  async writeBytes(path,bytes){if(this.images.has(path))throw Error('Already exists');this.images.set(path,{bytes,uploadedAt:new Date()});}
+  async stream(path){const image=this.images.get(path);return image?{stream:new Response(image.bytes).body}:null;}
 }
 const NOW=Date.parse('2026-10-26T10:00:00Z'),actor=sha('synthetic-customer'),fingerprint=sha('synthetic-image-fbk');
 async function setup(limit=20,now=NOW){const s=new Store();await A.configureAI(s,{enabled:true,dailyLimit:limit},true,now);const grant=await A.issueCode(s,now);return{s,grant};}
@@ -83,4 +87,20 @@ test('A completed image remains retrievable after the code expires, but never fo
  const{s,grant}=await setup(),id=randomUUID();await start(s,grant,id);await A.finishImage(s,id,{ok:true,imagePath:'ai/results/'+id+'.png'},NOW+60000);
  await A.configureAI(s,{enabled:false,dailyLimit:20},true,NOW+61000);assert.equal((await A.ownImage(s,id,grant.code,actor,NOW+3*3600000)).job.status,'done');
  await assert.rejects(()=>A.ownImage(s,id,grant.code,sha('other-person'),NOW+3*3600000),e=>e.status===403);
+});
+test('AI HTTP flow enforces admin, origin, consent and private image ownership end to end',async()=>{
+ const s=new Store(),env={ADMIN_PASSWORD:'synthetic-admin-password-only',ADMIN_SESSION_SECRET:'synthetic-session-secret-longer-than-32',BLOB_READ_WRITE_TOKEN:'synthetic-blob-token',OPENAI_API_KEY:'synthetic-openai-key'};let calls=0;
+ const handler=createAIHandler({loadStore:async()=>s,getEnv:()=>env,editImage:async args=>{calls++;assert.equal(args.club,'FBK Karlstad');assert.equal(args.safetyIdentifier,sha('customer-one'));assert(!('model' in args));return png(1536,1024);}});
+ const cookie=(kind,id)=>'__Host-bb3d_'+kind+'='+token(kind,id,100,env);
+ async function send(action,{who='customer',method='GET',body,code,origin='https://studio.test'}={}){const headers={origin};if(who==='admin')headers.cookie=cookie('admin','operator');if(who==='customer')headers.cookie=cookie('customer','customer-one');if(who==='other')headers.cookie=cookie('customer','customer-two');if(code)headers['x-bb3d-ai-code']=code;if(body)headers['content-type']='application/json';return handler(new Request('https://studio.test/api/ai?action='+action,{method,headers,...(body?{body:JSON.stringify(body)}:{})}));}
+ assert.equal((await send('admin',{who:'customer'})).status,401);assert.equal((await send('config',{who:'none'})).status,401);
+ assert.equal((await send('settings',{who:'admin',method:'POST',body:{enabled:true,dailyLimit:2},origin:'https://other.test'})).status,403);
+ assert.equal((await send('settings',{who:'admin',method:'POST',body:{enabled:true,dailyLimit:2}})).status,200);
+ const grant=await(await send('voucher',{who:'admin',method:'POST',body:{}})).json();assert(grant.code);
+ const id=randomUUID(),body={id,code:grant.code,club:'FBK Karlstad',photo:'data:image/png;base64,'+png().toString('base64'),consent:false,model:'untrusted-client-model'};
+ assert.equal((await send('generate',{method:'POST',body})).status,400);assert.equal(calls,0);
+ body.consent=true;const generated=await(await send('generate',{method:'POST',body})).json();assert.equal(generated.status,'done');assert.equal(generated.remaining,1);assert(!('imagePath' in generated));assert.equal(calls,1);
+ const replay=await(await send('generate',{method:'POST',body})).json();assert.equal(replay.status,'done');assert.equal(calls,1);
+ assert.equal((await send('result&id='+id,{who:'other',code:grant.code})).status,403);
+ const image=await send('result&id='+id,{code:grant.code});assert.equal(image.status,200);assert.equal(image.headers.get('cache-control'),'no-store');assert.equal(image.headers.get('content-type'),'image/png');assert(Buffer.from(await image.arrayBuffer()).equals(png(1536,1024)));
 });

@@ -44,7 +44,7 @@
       const data=await post('generate',{id:pending.id,code:$('ai-code').value,club:editor.getClub(),photo,consent:true});pending.status=data.status;quota.remaining=data.remaining;remember();
       if(data.status==='done')await showResult(data.id);else message(data.message||'Bilden bearbetas fortfarande. Kontrollera senaste försöket om en stund.');
       try{quota=await post('claim',{code:$('ai-code').value});}catch{}
-    }catch(e){if(!e.unknown&&!e.jobId&&e.status){pending=previous;remember();}message(e.message);}
+    }catch(e){if(e.status===410){pending=null;claimed=false;remember();}else if(!e.unknown&&!e.jobId&&e.status){pending=previous;remember();}message(e.message);}
     finally{if(locked)editor.busy(false);working=false;refresh();}
   };
   $('ai-use').onclick=async()=>{try{if(!resultURL)return;const blob=await(await fetch(resultURL)).blob(),src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Bilden kunde inte läsas.'));reader.readAsDataURL(blob);});await editor.apply(src);message('AI-bilden används nu. Granska kortet och godkänn beställningen.');}catch(e){message(e.message);}};
