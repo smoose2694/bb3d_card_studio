@@ -1,6 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let orders=[],loading=false,saving=false;
+let orders=[],loading=false,saving=false,refreshQueued=false;
+let activeRange={from:'',to:''};
 const labels={new:'Ny',production:'Under produktion',done:'Klar'};
 const money=value=>new Intl.NumberFormat('sv-SE',{style:'currency',currency:'SEK',maximumFractionDigits:0}).format(value);
 const number=value=>new Intl.NumberFormat('sv-SE').format(value);
@@ -60,16 +61,17 @@ function render(){
   }
 }
 async function refresh(){
-  if(loading||saving||$('admin-pane').hidden)return;
+  if(loading){refreshQueued=true;return;}
+  if(saving||$('admin-pane').hidden)return;
   loading=true;$('refresh').disabled=true;$('apply-period').disabled=true;
   try{
     const data=await api('/api/orders');
-    const query=new URLSearchParams();if($('date-from').value)query.set('from',$('date-from').value);if($('date-to').value)query.set('to',$('date-to').value);
+    const query=new URLSearchParams();if(activeRange.from)query.set('from',activeRange.from);if(activeRange.to)query.set('to',activeRange.to);
     const stats=await api('/api/stats?'+query.toString());
     if($('admin-pane').hidden)return;orders=data.orders;render();renderStats(stats);
     $('status').textContent='Uppdaterad '+new Intl.DateTimeFormat('sv-SE',{timeStyle:'short',timeZone:'Europe/Stockholm'}).format(new Date());
   }catch(e){$('status').textContent=e.message;}
-  finally{loading=false;$('refresh').disabled=false;$('apply-period').disabled=false;}
+  finally{loading=false;$('refresh').disabled=false;$('apply-period').disabled=false;if(refreshQueued){refreshQueued=false;refresh();}}
 }
 function setPeriod(){
   const today=day(new Date()),mode=$('period').value;let from='',to='';
@@ -79,8 +81,14 @@ function setPeriod(){
   if(mode!=='custom'){$('date-from').value=from;$('date-to').value=to;}
   $('date-from').readOnly=$('date-to').readOnly=mode!=='custom';
 }
-$('period').onchange=()=>{setPeriod();if($('period').value!=='custom')refresh();};
-$('period-form').onsubmit=event=>{event.preventDefault();refresh();};
+function applyRange(){
+  if(!$('period-form').reportValidity())return;
+  const from=$('date-from').value,to=$('date-to').value;
+  if(from&&to&&from>to){$('status').textContent='Fråndatum får inte vara efter tilldatum.';return;}
+  activeRange={from,to};refresh();
+}
+$('period').onchange=()=>{setPeriod();if($('period').value!=='custom')applyRange();};
+$('period-form').onsubmit=event=>{event.preventDefault();applyRange();};
 $('login-form').onsubmit=async event=>{
   event.preventDefault();$('login-button').disabled=true;$('login-status').textContent='Loggar in…';
   try{await api('/api/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('password').value})});$('password').value='';$('login-pane').hidden=true;$('admin-pane').hidden=false;await refresh();}
