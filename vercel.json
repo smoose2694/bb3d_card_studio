@@ -5,8 +5,7 @@
   "installCommand": "npm install",
   "outputDirectory": "public",
   "regions": ["arn1"],
-  "rewrites": [{"source":"/admin","destination":"/admin.html"}],
+  "rewrites": [{"source":"/bestallningar","destination":"/admin.html"},{"source":"/admin","destination":"/admin.html"}],
   "crons": [{"path":"/api/cleanup","schedule":"0 3 * * *"}],
   "headers": [{"source":"/api/(.*)","headers":[{"key":"Cache-Control","value":"no-store"},{"key":"X-Content-Type-Options","value":"nosniff"}]}]
 }
-
