@@ -9,6 +9,7 @@
   const clubs = {
     'FBK Karlstad': {logo:'FBK_Karlstad',primary:'#c80b2c',accent:'#ffffff',name:'RÖD / VIT'},
     'Norrstrands IF': {logo:'Norrstrands_IF',primary:'#c80b2c',accent:'#ffffff',name:'RÖD / VIT'},
+    'Fiskeviks IF': {logo:'Fiskeviks_IF',primary:'#009849',accent:'#ffffff',name:'VIT / GRÖN'},
     'Råtorps IK': {logo:'Ratorps_IK',primary:'#76c7ea',accent:'#ffffff',name:'LJUSBLÅ / VIT'},
     'Hertzöga BK': {logo:'Hertzoga_BK',primary:'#f2d334',accent:'#318645',name:'GUL / GRÖN'},
     'Egen klubb': {logo:null,primary:'#c80b2c',accent:'#ffffff',name:'EGNA FÄRGER'}
@@ -74,7 +75,7 @@
     for(const e of svg.querySelectorAll('text')) e.setAttribute('font-family','CardFont');
     palette(svg);
     const logo=svg.querySelector('image');
-    const logoSource=state.logo||A.logos[clubs[state.club].logo];
+    const logoSource=state.logo||(clubs[state.club].logo==='Fiskeviks_IF'?window.BB3D_FIF_LOGO:A.logos[clubs[state.club].logo]);
     if(logoSource)logo.setAttributeNS(XLINK,'xlink:href',logoSource);else logo.remove();
     const clubText=make('text',{x:345,y:which==='front'?220:650,fill:'#ffffff','font-family':'CardFont','font-weight':700,'font-size':which==='front'?13:22,'text-anchor':'middle','letter-spacing':2});
     fitText(clubText,state.clubName.toLocaleUpperCase('sv-SE'),which==='front'?300:470,which==='front'?13:22);
@@ -242,4 +243,3 @@
   }
   init();
 })();
-

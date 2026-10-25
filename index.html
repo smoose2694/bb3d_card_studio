@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="sv">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Skapa egna Future Star-fotbollskort med BB3D. Ladda upp en bild, godkänn ditt kort och beställ utskrift hos BB3D."><title>BB3D Card Studio – Future Star</title><link rel="icon" href="data:,"><link rel="stylesheet" href="styles.css"><script src="assets.js" defer></script><script src="upload.js" defer></script><script src="app.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Skapa egna Future Star-fotbollskort med BB3D. Ladda upp en bild, godkänn ditt kort och beställ utskrift hos BB3D."><title>BB3D Card Studio – Future Star</title><link rel="icon" href="data:,"><link rel="stylesheet" href="styles.css"><script src="assets.js" defer></script><script src="upload.js" defer></script><script src="fiskeviks-logo.js" defer></script><script src="app.js" defer></script></head>
 <body>
 <header><a class="brand" href="./"><span class="brandmark">BB3D</span><span>Card Studio<small>FUTURE STAR COLLECTION</small></span></a><span class="local">Skapa · godkänn · vi printar</span></header>
 <main>
 <section class="editor" aria-labelledby="editor-title"><p class="eyebrow">FRÅN SPELARE TILL SAMLARKORT</p><h1 id="editor-title">Ditt nästa stjärnkort.</h1><p class="intro">Originalmallen. Ditt foto. Dina egenskaper.</p>
 <form id="editor-form">
 <fieldset><legend><span>01</span> Spelaren</legend><label for="name">Spelarnamn</label><input id="name" maxlength="60" value="SPELARNAMN" autocomplete="off">
-<div class="two"><div><label for="club">Klubbmall</label><select id="club"><option>FBK Karlstad</option><option>Norrstrands IF</option><option>Råtorps IK</option><option>Hertzöga BK</option><option>Egen klubb</option></select></div><div><label for="position">Position</label><select id="position"><option>ANFALLARE</option><option>MITTFÄLTARE</option><option>BACK</option><option>MÅLVAKT</option></select></div></div>
+<div class="two"><div><label for="club">Klubbmall</label><select id="club"><option>FBK Karlstad</option><option>Norrstrands IF</option><option>Fiskeviks IF</option><option>Råtorps IK</option><option>Hertzöga BK</option><option>Egen klubb</option></select></div><div><label for="position">Position</label><select id="position"><option>ANFALLARE</option><option>MITTFÄLTARE</option><option>BACK</option><option>MÅLVAKT</option></select></div></div>
 <label for="clubName">Klubbnamn på kortet</label><input id="clubName" maxlength="50" value="FBK Karlstad">
 <details><summary>Egna klubbfärger och logotyp</summary><div class="two"><label>Huvudfärg<input id="primary" type="color" value="#c80b2c"></label><label>Accentfärg<input id="accent" type="color" value="#ffffff"></label></div><label for="logo">Egen logotyp (PNG, JPG eller WebP)</label><input type="file" id="logo" accept="image/png,image/jpeg,image/webp"><button type="button" id="clear-logo" class="text-button">Återställ klubblogga och färger</button></details>
 </fieldset>
@@ -19,4 +19,3 @@
 <section class="preview" aria-label="Förhandsvisning"><div class="preview-top"><span class="eyebrow">DITT KORT, LIVE</span><div role="group" aria-label="Välj sida"><button type="button" id="show-front" aria-pressed="true">Framsida</button><button type="button" id="show-back" aria-pressed="false">Baksida</button></div></div><div id="card" aria-label="Förhandsvisning av kortet"></div><div class="preview-bottom"><span id="club-caption">FBK KARLSTAD · RÖD / VIT</span><span>63 × 88 MM</span></div><p class="preview-note">FUTURE STAR <span>✦</span> HARD WORK BEATS TALENT.</p></section>
 </main><footer>BB3D Card Studio · Future Star <a href="/admin">BB3D:s produktionskö</a></footer><noscript>Aktivera JavaScript för att använda kortstudion.</noscript>
 </body></html>
-
