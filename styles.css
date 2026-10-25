@@ -2,3 +2,5 @@
 
 
 .approval{display:flex;align-items:flex-start;gap:10px;margin:12px 0 18px;line-height:1.6}.approval input[type=checkbox]{width:auto!important;margin:5px 0 0!important;accent-color:#344e35}.receipt{background:#e2efdc;border:1px solid #7e9f70;padding:16px;margin:16px 0;border-radius:6px;font-weight:650}#submit-order{width:100%}.swish-link{display:block;padding:14px;text-align:center;text-decoration:none;border-radius:5px;font-weight:700}#payment[hidden]{display:none}#payment h2{font-size:19px;margin-top:0}
+
+.ai-panel{padding:16px;margin:18px 0;border:1px solid #b7c9ac;border-radius:7px;background:#edf2e7}.ai-panel h3{font-size:16px;margin:0 0 8px}.ai-panel button{margin-top:8px}.ai-panel img{display:block;max-width:100%;max-height:320px;margin:12px auto;border-radius:6px}.ai-panel[hidden],#ai-result[hidden]{display:none}
