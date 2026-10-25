@@ -164,14 +164,14 @@
     const file=$(kind).files[0];if(!file)return;
     const token=kind==='photo'?++photoRead:++logoRead;
     try {
-      photoReadPending=true;status('Läser bilden…');
+      photoReadPending++;status('Läser bilden…');
       const result=await readImageFile(file);
       if(token!==(kind==='photo'?photoRead:logoRead))return;
       if(sending)throw new Error('Vänta tills beställningen är klar innan bilden ändras.');
       state[kind]=result.data;
       if(kind==='photo') {photoSize=result;state.zoom=100;state.panX=0;state.panY=0;}
       syncForm();status('Bilden är inläst. Den skickas till BB3D först när du bekräftar beställningen.');
-    } catch(e) {status(e.message,true);} finally {photoReadPending=false;$(kind).value='';}
+    } catch(e) {status(e.message,true);} finally {photoReadPending=Math.max(0,photoReadPending-1);$(kind).value='';}
   });
   $('clear-photo').addEventListener('click',()=>{photoRead++;state.photo=null;photoSize=null;$('photo').value='';render();status('Fotot är borttaget.');});
   for(const which of ['front','back']) $(`show-${which}`).addEventListener('click',()=>{
@@ -227,7 +227,7 @@
       $('order-status').textContent='Bekräftar att BB3D har tagit emot beställningen…';const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:pending.id,details,imageHash:hash})}),data=await r.json();if(!r.ok||!data.receipt)throw Error(data.error||'Beställningen kunde inte bekräftas.');pending.confirmed=true;$('receipt').textContent='Tack! BB3D har tagit emot din beställning '+data.receipt.id.slice(0,8).toUpperCase()+'. '+details.quantity+' kort för '+details.player+'.';$('receipt').hidden=false;$('order-status').textContent='Ditt kort finns nu i BB3D:s produktionskö.';status('Beställningen är mottagen.');
     }finally{controls.forEach((n,i)=>n.disabled=previous[i]);$('submit-order').textContent='Bekräfta för utskrift';sending=false;}
   }catch(e){$('order-status').textContent=e.message+' Om du inte har fått ett kvitto kan du försöka igen. Samma beställning skickas inte dubbelt.';status(e.message,true);sending=false;}}
-  let photoReadPending=false;
+  let photoReadPending=0;
 
   async function init() {
     try {
