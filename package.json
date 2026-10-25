@@ -1,0 +1,7 @@
+{
+  "name": "bb3d-card-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BB3D Future Star card editor, restored from the supplied original template",
+  "scripts": {"start": "node server.cjs", "check": "node --check app.js && node --check assets.js && node --check server.cjs"}
+}
