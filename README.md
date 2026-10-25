@@ -22,7 +22,7 @@ Kundfiler blir oåtkomliga efter 30 dagar. Ett dagligt Vercel Cron-jobb rensar u
 
 Alla hemligheter är servervariabler; inga hemligheter ska läggas i GitHub eller klistras in i chatten. Inloggning ger en signerad, HttpOnly/Secure/SameSite-session som gäller i 12 timmar. Byte av lösenord ogiltigförklarar gamla sessioner. Produktionskön och alla kortfiler kontrollerar sessionen på servern. Uppladdningar har kortlivade, sökvägsbegränsade token för den aktuella kundsessionen. Inloggnings- och beställningsförsök begränsas serverbaserat. Kundens originalfoto sparas inte separat; endast den godkända PNG-framsidan skickas.
 
-Inga betalningar, prisregler, e-postmeddelanden eller WooCommerce-anrop ingår. Automatisk AI-bearbetning, fler sporter och egna monsterkort är nästa etapp. Future Star-original och befintliga redigeringsfunktioner är bevarade. Originalmasker och baksidor i `originalmall/` ändras inte. De ligger kvar i källprojektet och följer inte med som separata publika filer i den nya byggmappen.
+Mässpris: 100 kr per 4-pack med likadana kort, utan frakt. Servern beräknar och sparar priset. Efter sparad beställning visas Swish-länk till 1233661089 med belopp och orderreferens. Kunden visar genomförd betalning för BB3D, som kontrollerar den innan status ändras till Under produktion. Ingen automatisk betalningskontroll, e-post eller WooCommerce ingår. Swish-format: https://developer.swish.nu/documentation/guides/generate-qr-codes . Automatisk AI-bearbetning, fler sporter och egna monsterkort är nästa etapp. Future Star-original och befintliga redigeringsfunktioner är bevarade. Originalmasker och baksidor i `originalmall/` ändras inte. De ligger kvar i källprojektet och följer inte med som separata publika filer i den nya byggmappen.
 
 ## Teknikval
 
