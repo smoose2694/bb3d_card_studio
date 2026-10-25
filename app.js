@@ -19,6 +19,7 @@
   let photoSize = null;
   let ready = false;
   let exporting = false;
+  let sending = false, connection = null, pending = null;
   let photoRead = 0, logoRead = 0;
   const measure = document.createElement('canvas').getContext('2d');
   const numeric = (value,min,max,fallback=min) => {
@@ -100,6 +101,7 @@
   }
   function render() {
     if(!ready) return;
+    if(!sending&&document.getElementById('approve')) $('approve').checked=false;
     $('card').replaceChildren(buildSVG(side));
     $('sum').textContent=`Poängsumma: ${state.stats.reduce((a,b)=>a+b,0)} · Medelvärde: ${(state.stats.reduce((a,b)=>a+b,0)/6).toFixed(1)}. Totalrating ändras bara av dig.`;
     $('club-caption').textContent=`${state.clubName.toLocaleUpperCase('sv-SE')} · ${state.primary===clubs[state.club].primary && state.accent===clubs[state.club].accent?clubs[state.club].name:'EGNA FÄRGER'}`;
@@ -118,7 +120,7 @@
     input.addEventListener('change',()=>{input.value=state.stats[i];});
     wrap.append(l,input);$('stats').appendChild(wrap);
   });
-  $('editor-form').addEventListener('submit',e=>e.preventDefault());
+  $('editor-form').addEventListener('submit',submitOrder);
   for(const id of ['name','clubName','position','primary','accent','zoom','panX','panY','total']) {
     $(id).addEventListener('input',()=>{
       state[id]=['zoom','panX','panY','total'].includes(id)?numeric($(id).value,id==='total'?1:id==='zoom'?100:-100,id==='total'?99:id==='zoom'?300:100,state[id]):$(id).value;
@@ -162,13 +164,14 @@
     const file=$(kind).files[0];if(!file)return;
     const token=kind==='photo'?++photoRead:++logoRead;
     try {
-      status('Läser bilden…');
+      photoReadPending=true;status('Läser bilden…');
       const result=await readImageFile(file);
       if(token!==(kind==='photo'?photoRead:logoRead))return;
+      if(sending)throw new Error('Vänta tills beställningen är klar innan bilden ändras.');
       state[kind]=result.data;
       if(kind==='photo') {photoSize=result;state.zoom=100;state.panX=0;state.panY=0;}
-      syncForm();status('Bilden är inläst. Den sparas bara om du laddar ner projektfilen.');
-    } catch(e) {status(e.message,true);} finally {$(kind).value='';}
+      syncForm();status('Bilden är inläst. Den skickas till BB3D först när du bekräftar beställningen.');
+    } catch(e) {status(e.message,true);} finally {photoReadPending=false;$(kind).value='';}
   });
   $('clear-photo').addEventListener('click',()=>{photoRead++;state.photo=null;photoSize=null;$('photo').value='';render();status('Fotot är borttaget.');});
   for(const which of ['front','back']) $(`show-${which}`).addEventListener('click',()=>{
@@ -198,13 +201,9 @@
     }
     return new Blob(parts,{type:'image/png'});
   }
-  function download(blob,name) {
-    const a=document.createElement('a'),url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-  }
-  const filename=()=> (state.name.trim()||'spelare').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,65);
   async function exportPNG(which) {
     if(!ready||exporting)return;
-    exporting=true;for(const s of ['front','back'])$(`export-${s}`).disabled=true;
+    exporting=true;
     try {
       status('Skapar tryckfil…');await document.fonts.ready;
       const xml=new XMLSerializer().serializeToString(buildSVG(which));
@@ -214,43 +213,32 @@
       const ctx=c.getContext('2d');ctx.drawImage(image,0,0);
       const raw=await new Promise((resolve,reject)=>c.toBlob(b=>b?resolve(b):reject(new Error('PNG-exporten misslyckades.')),'image/png'));
       const png=await withPrintDensity(raw);
-      download(png,`${filename()}_${which==='front'?'framsida':'baksida'}_63x88.png`);
-      status('PNG skapad: 1488 × 2079 px, 63 × 88 mm, cirka 600 dpi.');
-    }catch(e){status('Exporten misslyckades: '+e.message,true);}finally{exporting=false;for(const s of ['front','back'])$(`export-${s}`).disabled=false;}
+      return png;
+    }finally{exporting=false;}
   }
-  for(const which of ['front','back'])$(`export-${which}`).addEventListener('click',()=>exportPNG(which));
-  $('save').addEventListener('click',()=>{download(new Blob([JSON.stringify({app:'BB3D Card Studio',version:1,state},null,2)],{type:'application/json'}),`${filename()}_projekt.json`);status('Projektfilen innehåller inställningar och uppladdade bilder.');});
-  function validateProject(raw) {
-    if(raw.app!=='BB3D Card Studio'||raw.version!==1||!raw.state)throw new Error('Projektfilen har ett format som inte stöds.');
-    const s=raw.state;
-    if(!Object.hasOwn(clubs,s.club)||!['ANFALLARE','MITTFÄLTARE','BACK','MÅLVAKT'].includes(s.position))throw new Error('Ogiltig klubb eller position.');
-    if(typeof s.name!=='string'||s.name.length>60||typeof s.clubName!=='string'||s.clubName.length>50)throw new Error('Ogiltiga namnfält.');
-    for(const id of ['primary','accent'])if(!/^#[0-9a-f]{6}$/i.test(s[id]))throw new Error('Ogiltig färg.');
-    for(const id of ['photo','logo'])if(s[id]!==null&&(typeof s[id]!=='string'||s[id].length>55000000||!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(s[id])))throw new Error('Ogiltiga bilddata.');
-    if(!Array.isArray(s.stats)||s.stats.length!==6||s.stats.some(x=>!Number.isInteger(x)||x<1||x>99)||!Number.isInteger(s.total)||s.total<1||s.total>99)throw new Error('Ratings måste vara heltal 1–99.');
-    for(const id of ['zoom','panX','panY'])if(!Number.isFinite(s[id])||s[id]<(id==='zoom'?100:-100)||s[id]>(id==='zoom'?300:100))throw new Error('Ogiltig bildplacering.');
-    return Object.fromEntries(Object.keys(state).map(k=>[k,s[k]]));
-  }
-  $('load').addEventListener('change',async()=>{
-    const file=$('load').files[0];if(!file)return;
-    try{
-      if(file.size>110*1024*1024)throw new Error('Projektfilen är för stor.');
-      const next=validateProject(JSON.parse(await file.text()));
-      const photo=next.photo?await loadImage(next.photo):null;
-      if(next.logo)await loadImage(next.logo);
-      photoRead++;logoRead++;state=next;photoSize=photo?{width:photo.width,height:photo.height}:null;
-      syncForm();status('Projektet är öppnat.');
-    }catch(e){status('Kunde inte öppna projektet: '+e.message,true);}finally{$('load').value='';}
-  });
+  async function connectOrders(){try{const r=await fetch('/api/config');if(!r.ok)throw Error();connection=await r.json();$('submit-order').disabled=!connection.orders;$('order-status').textContent=connection.orders?'Redo att skicka din beställning till BB3D.':'Beställningsmottagningen är inte ansluten ännu. Inget kan skickas.';}catch{$('submit-order').disabled=true;$('order-status').textContent='Ingen anslutning till BB3D. Försök ladda om sidan.';}}
+  async function submitOrder(event){event.preventDefault();if(sending)return;try{
+    if(!connection?.orders)throw Error('Beställningsmottagningen är inte ansluten.');if(!state.photo)throw Error('Ladda upp ett spelarfoto först.');if(photoReadPending)throw Error('Vänta tills bilden har lästs in.');if(!state.name.trim()||state.name.trim().toUpperCase()==='SPELARNAMN')throw Error('Ange spelarens namn på kortet.');if(!$('approve').checked)throw Error('Granska kortet och godkänn förhandsvisningen först.');if(!$('editor-form').reportValidity())return;
+    const details={customerName:$('customer-name').value.trim(),contact:$('contact').value.trim(),quantity:Number($('quantity').value),approved:true,player:state.name.trim(),club:state.club,clubName:state.clubName,position:state.position,stats:[...state.stats],total:state.total};
+    sending=true;const controls=[...document.querySelectorAll('input,select,button')],previous=controls.map(n=>n.disabled);controls.forEach(n=>n.disabled=true);$('submit-order').textContent='Skickar ditt kort…';$('receipt').hidden=true;side='front';render();
+    try{const png=await exportPNG('front');if(!png||png.size>12*1024*1024)throw Error('Kortfilen är för stor. Välj en mindre bild.');const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await png.arrayBuffer()))).map(n=>n.toString(16).padStart(2,'0')).join(''),signature=hash+JSON.stringify(details);
+      if(!pending||pending.signature!==signature)pending={signature,id:crypto.randomUUID(),uploaded:false,confirmed:false};
+      if(!pending.uploaded){$('order-status').textContent='Laddar upp din färdiga kortbild…';try{await window.BB3D_UPLOAD(connection.uploadPrefix+pending.id+'.png',png,p=>{$('order-status').textContent='Laddar upp kortbilden: '+Math.round(p.percentage)+' %';});pending.uploaded=true;}catch(e){if(!/already exists|alreadyexists/i.test(e.message))throw e;pending.uploaded=true;}}
+      $('order-status').textContent='Bekräftar att BB3D har tagit emot beställningen…';const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:pending.id,details,imageHash:hash})}),data=await r.json();if(!r.ok||!data.receipt)throw Error(data.error||'Beställningen kunde inte bekräftas.');pending.confirmed=true;$('receipt').textContent='Tack! BB3D har tagit emot din beställning '+data.receipt.id.slice(0,8).toUpperCase()+'. '+details.quantity+' kort för '+details.player+'.';$('receipt').hidden=false;$('order-status').textContent='Ditt kort finns nu i BB3D:s produktionskö.';status('Beställningen är mottagen.');
+    }finally{controls.forEach((n,i)=>n.disabled=previous[i]);$('submit-order').textContent='Bekräfta för utskrift';sending=false;}
+  }catch(e){$('order-status').textContent=e.message+' Om du inte har fått ett kvitto kan du försöka igen. Samma beställning skickas inte dubbelt.';status(e.message,true);sending=false;}}
+  let photoReadPending=false;
+
   async function init() {
     try {
       const regular=new FontFace('CardFont',`url(${A.font})`,{weight:'400'});
       const bold=new FontFace('CardFont',`url(${A.bold})`,{weight:'800'});
       const fonts=await Promise.all([regular.load(),bold.load()]);fonts.forEach(f=>document.fonts.add(f));
       const style=document.createElement('style');style.textContent=fontStyle();document.head.appendChild(style);
-      ready=true;syncForm();for(const s of ['front','back'])$(`export-${s}`).disabled=false;
-      status('Redo. Redigera kortet och ladda ner en PNG när du är nöjd.');
+      ready=true;syncForm();await connectOrders();
+      status('Redo. Ladda upp en bild och skapa ditt kort.');
     }catch(e){status('Kunde inte starta studion: '+e.message,true);}
   }
   init();
 })();
+

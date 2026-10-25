@@ -1,7 +1,22 @@
 {
   "name": "bb3d-card-studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "BB3D Future Star card editor, restored from the supplied original template",
-  "scripts": {"start": "node server.cjs", "check": "node --check app.js && node --check assets.js && node --check server.cjs"}
+  "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "scripts": {
+    "start": "node server.cjs",
+    "build": "npm run check && npm test && node scripts/build.mjs",
+    "check": "node --check app.js && node --check lib/core.js && node --check lib/handler.js && node --check admin.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.8.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.0"
+  }
 }
