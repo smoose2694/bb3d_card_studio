@@ -8,11 +8,17 @@
   // Derived palette variants retain all paths, framing and cropping from the supplied original.
   const clubs = {
     'FBK Karlstad': {logo:'FBK_Karlstad',primary:'#c80b2c',accent:'#ffffff',name:'RÖD / VIT'},
-    'Norrstrands IF': {logo:'Norrstrands_IF',primary:'#c80b2c',accent:'#ffffff',name:'RÖD / VIT'},
+    'Norrstrands IF': {logo:'Norrstrands_IF',primary:'#f30f24',accent:'#ffffff',name:'RÖD / VIT'},
     'Fiskeviks IF': {logo:'Fiskeviks_IF',primary:'#009849',accent:'#ffffff',name:'VIT / GRÖN'},
-    'Råtorps IK': {logo:'Ratorps_IK',primary:'#76c7ea',accent:'#ffffff',name:'LJUSBLÅ / VIT'},
-    'Hertzöga BK': {logo:'Hertzoga_BK',primary:'#f2d334',accent:'#318645',name:'GUL / GRÖN'},
+    'Råtorps IK': {logo:'Ratorps_IK',primary:'#68cbea',accent:'#ffffff',name:'LJUSBLÅ / VIT'},
+    'Hertzöga BK': {logo:'Hertzoga_BK',primary:'#ffe62b',accent:'#005b2b',name:'GUL / GRÖN'},
     'Egen klubb': {logo:null,primary:'#c80b2c',accent:'#ffffff',name:'EGNA FÄRGER'}
+  };
+  // Club-specific print palettes follow the supplied front/back references.
+  const referencePalettes = {
+    'Norrstrands IF': {background:['#f31329','#ed0824','#d42137'],ink:'#ffffff',name:'#830019',panel:'#fff8f7',badge:'#bc0026',position:'#e50024',circle:'#900024',photo:['#c70a26','#aa0922']},
+    'Råtorps IK': {background:['#93dff1','#68cbea','#49b8df'],ink:'#004a70',name:'#004a70',panel:'#ffffff',badge:'#d6f4ff',position:'#e2f7ff',circle:'#d6f4ff',photo:['#56bfdc','#3da4cb']},
+    'Hertzöga BK': {background:['#e1e95f','#ffeb28','#e2cf2a'],ink:'#005b2b',name:'#005b2b',panel:'#ffffff',badge:'#f8f1a0',position:'#fff9b0',circle:'#f8f1a0',photo:['#e1d934','#d3ce30']}
   };
   let state = {name:'SPELARNAMN',club:'FBK Karlstad',clubName:'FBK Karlstad',position:'ANFALLARE',total:87,
     stats:[88,84,81,91,67,99],primary:'#c80b2c',accent:'#ffffff',photo:null,logo:null,zoom:100,panX:0,panY:0};
@@ -42,8 +48,15 @@
     return '#'+rgb.map(x=>Math.min(255,x).toString(16).padStart(2,'0')).join('');
   }
   function palette(svg) {
+    const reference=referencePalettes[state.club];
+    const useReference=reference&&state.primary===clubs[state.club].primary&&state.accent===clubs[state.club].accent;
     // Red/white defaults use the exact original colors. Other variants use this explicit mapping.
-    const map = state.primary==='#c80b2c' && state.accent==='#ffffff' ? {} : {
+    const map = useReference ? {
+      '#71091e':reference.background[0],'#370712':reference.background[1],'#16070c':reference.background[2],
+      '#ed2946':state.primary,'#ff8090':'#ffffff','#570717':reference.photo[0],'#350712':reference.photo[1],
+      '#eaaab6':reference.badge,'#fff8f7':reference.panel,'#830019':reference.name,'#c80b2c':reference.position,
+      '#aa0624':reference.badge,'#8d051e':reference.circle,'#ffe2e6':reference.ink,'#ffffff':'#ffffff'
+    } : state.primary==='#c80b2c' && state.accent==='#ffffff' ? {} : {
       '#71091e':shade(state.primary,.54),'#370712':shade(state.primary,.28),'#16070c':shade(state.primary,.13),
       '#ed2946':state.primary,'#ff8090':state.accent,'#570717':shade(state.primary,.4),'#350712':shade(state.primary,.22),
       '#eaaab6':shade(state.primary,.55),'#fff8f7':'#fffdf6','#830019':shade(state.primary,.36),'#c80b2c':shade(state.primary,.65),
@@ -52,6 +65,8 @@
     for(const e of svg.querySelectorAll('*')) for(const attr of ['fill','stroke','stop-color']) {
       const v=e.getAttribute(attr); if(map[v]) e.setAttribute(attr,map[v]);
     }
+    if(useReference) for(const text of svg.querySelectorAll('text')) text.setAttribute('fill',text.getAttribute('y')==='706'?reference.name:reference.ink);
+    return useReference?reference.ink:'#ffffff';
   }
   function fitText(el,text,maxWidth,maxSize) {
     el.textContent=text;
@@ -73,11 +88,11 @@
     svg.setAttribute('role','img'); svg.setAttribute('aria-label',`${which==='front'?'Framsida':'Baksida'}: ${state.name}, ${state.clubName}`);
     svg.querySelector('defs').appendChild(make('style',{},fontStyle()));
     for(const e of svg.querySelectorAll('text')) e.setAttribute('font-family','CardFont');
-    palette(svg);
+    const clubInk=palette(svg);
     const logo=svg.querySelector('image');
     const logoSource=state.logo||(clubs[state.club].logo==='Fiskeviks_IF'?window.BB3D_FIF_LOGO:A.logos[clubs[state.club].logo]);
     if(logoSource)logo.setAttributeNS(XLINK,'xlink:href',logoSource);else logo.remove();
-    const clubText=make('text',{x:345,y:which==='front'?220:650,fill:'#ffffff','font-family':'CardFont','font-weight':700,'font-size':which==='front'?13:22,'text-anchor':'middle','letter-spacing':2});
+    const clubText=make('text',{x:345,y:which==='front'?220:650,fill:clubInk,'font-family':'CardFont','font-weight':700,'font-size':which==='front'?13:22,'text-anchor':'middle','letter-spacing':2});
     fitText(clubText,state.clubName.toLocaleUpperCase('sv-SE'),which==='front'?300:470,which==='front'?13:22);
     svg.appendChild(clubText);
     if(which==='front') {
