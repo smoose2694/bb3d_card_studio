@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BB3D Card Studio
  * Description: Personliga sport- och Pokémonliknande kort med privat utskriftskö, Swish och kontrollerade AI-försök.
- * Version: 0.2.1
+ * Version: 0.2.2
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author: BB3D
@@ -68,7 +68,7 @@ function endpoint($q) {
         $route=$q['route'];$method=$q->get_method();$action=$q->get_param('action')??'';$actor=customer();$s=service();$ai=new AI($s);
         if($route==='config'&&$method==='GET') {
             $ready=true;$reason=null;try{storage()->privateDir();}catch(Failure $e){$ready=false;$reason=$e->getMessage();}
-            return response(['orders'=>$ready,'admin'=>operator(),'uploadPrefix'=>'incoming/'.substr($actor,0,24).'/','setup'=>$ready?null:['message'=>$reason]]);
+            return response(['trialBeforePayment'=>true,'orders'=>$ready,'admin'=>operator(),'uploadPrefix'=>'incoming/'.substr($actor,0,24).'/','setup'=>$ready?null:['message'=>$reason]]);
         }
         if($route==='session'&&$method==='GET') return response(['admin'=>operator()]);
         if($route==='purchase') {
@@ -107,8 +107,8 @@ function endpoint($q) {
             }
             if($action==='bonus'&&$method==='POST') {
                 $b=body($q,1500);demand(uuid($b['requestId']??null),400,'Ogiltig tilldelning.');$r=storage()->read('orders/'.($b['purchaseId']??''))['data']??null;demand($r,404,'Köpet finns inte.');
-                [$row,$i]=$s->slot($r['id'],$b['slotId']??'',$r['customer']);$slot=$row['data']['slots'][$i];$s->ensure($r,$slot);$key=$s->grantKey($r,$slot);
-                return response($s->changeControl(function(&$c) use($b,$key,$s){$g=&$c['grants'][$key];if(!in_array($b['requestId'],$g['bonusRequests'],true)){demand($g['maxAttempts']<100,400,'Säkerhetstaket är nått.');$g['maxAttempts']+=2;$g['maxImages']+=2;$g['bonusRequests'][]=$b['requestId'];}return $s->info($g)+['dailyCapReached'=>($c['usage'][day()]??0)>=$c['settings']['dailyLimit']];}));
+                [$row,$i]=$s->slot($r['id'],$b['slotId']??'',$r['customer'],true,false);$slot=$row['data']['slots'][$i];$s->ensure($r,$slot);$key=$s->grantKey($r,$slot);
+                return response($s->changeControl(function(&$c) use($b,$key,$s,$r){$g=&$c['grants'][$key];if(!in_array($b['requestId'],$g['bonusRequests'],true)){demand($g['maxAttempts']<100,400,'Säkerhetstaket är nått.');$g['maxAttempts']+=2;$g['maxImages']+=2;$g['bonusRequests'][]=$b['requestId'];if(!$r['paid']){$actor=$r['customer'];$t=$c['trials'][$actor]??['used'=>0,'max'=>2,'expiresAt'=>time()+30*86400];$t['max']+=2;$c['trials'][$actor]=$t;}}return $s->info($g)+['dailyCapReached'=>($c['usage'][day()]??0)>=$c['settings']['dailyLimit']];}));
             }
             if($action==='generate'&&$method==='POST') { rate_limit('generate',40);$b=body($q,3600000);return response($ai->generate($b,$actor)); }
             if(in_array($action,['claim','quota','status','result'],true)) {
@@ -116,9 +116,9 @@ function endpoint($q) {
                 $b=$action==='claim'?body($q,1500):[];
                 $purchase=in_array($action,['status','result'],true)?$q->get_header('x-bb3d-purchase'):($b['purchaseId']??$q->get_param('purchaseId')??'');
                 $slotId=in_array($action,['status','result'],true)?$q->get_header('x-bb3d-slot'):($b['slotId']??$q->get_param('slotId')??'');
-                [$row,$i]=$s->slot($purchase,$slotId,$actor,$action==='claim');$r=$row['data'];$slot=$r['slots'][$i];
+                [$row,$i]=$s->slot($purchase,$slotId,$actor,$action==='claim',false);$r=$row['data'];$slot=$r['slots'][$i];
                 if($action==='claim') return response($s->ensure($r,$slot));
-                if($action==='quota') { $c=$s->control();return response($s->info($c['grants'][$s->grantKey($r,$slot)]??null)+['available'=>$ai->summary($c)['available']]); }
+                if($action==='quota') { $c=$s->control();return response($s->aiInfo($r,$slot,$c)+['available'=>$ai->summary($c)['available']]); }
                 $id=$q->get_param('id')??'';$job=$ai->job($id,$r,$slot);
                 if($action==='status') return response($job);
                 demand($job['status']==='done',409,'Bilden är inte klar.');binary_response(storage()->image('ai/'.$id),'BB3D-AI.png');
@@ -154,7 +154,7 @@ function settings_page() {
         catch(Failure $e){$key_notice=$e->getMessage();}
     }
     $private=true;$message='Privat bildlagring är tillgänglig.';try{storage()->privateDir();}catch(Failure $e){$private=false;$message=$e->getMessage();}
-    echo '<div class="wrap"><h1>BB3D Card Studio · testversion 0.2.1</h1><p>Kortstudio och utskriftskö på ditt befintliga webbhotell. Swish kontrolleras manuellt. Befintliga WooCommerce-beställningar ändras inte.</p><p><a class="button button-primary" href="'.esc_url(page_url()).'">Öppna kortstudion</a> <a class="button" href="'.esc_url(page_url('fantasy')).'">Öppna Pokémonkort</a> <a class="button" href="'.esc_url(page_url('admin')).'">Öppna produktionskön</a></p><h2>Kontroll före öppning</h2><ul><li>'.esc_html($message).'</li><li>AI-nyckel: '.((new AI(service()))->ready()?'ansluten':'saknas – anslut den i fältet nedan').'</li><li>PHP-körtid: '.esc_html(ini_get('max_execution_time')).' sekunder. Ett riktigt AI-test på Loopia återstår.</li><li>Daglig rensning: '.(wp_next_scheduled('bb3d_cards_cleanup')?'schemalagd':'saknas').'. Kundbilder och kontaktuppgifter sparas i högst 30 dagar, AI-resultat i 24 timmar.</li></ul><p>Nuvarande läge: <strong>'.(get_option('bb3d_cards_public',false)?'Öppen för kunder':'Testläge – endast behöriga WordPress-användare').'</strong>.</p>';
+    echo '<div class="wrap"><h1>BB3D Card Studio · testversion 0.2.2</h1><p>Kortstudio och utskriftskö på ditt befintliga webbhotell. Swish kontrolleras manuellt. Befintliga WooCommerce-beställningar ändras inte.</p><p><a class="button button-primary" href="'.esc_url(page_url()).'">Öppna kortstudion</a> <a class="button" href="'.esc_url(page_url('fantasy')).'">Öppna Pokémonkort</a> <a class="button" href="'.esc_url(page_url('admin')).'">Öppna produktionskön</a></p><h2>Kontroll före öppning</h2><ul><li>'.esc_html($message).'</li><li>AI-nyckel: '.((new AI(service()))->ready()?'ansluten':'saknas – anslut den i fältet nedan').'</li><li>PHP-körtid: '.esc_html(ini_get('max_execution_time')).' sekunder. Ett riktigt AI-test på Loopia återstår.</li><li>Daglig rensning: '.(wp_next_scheduled('bb3d_cards_cleanup')?'schemalagd':'saknas').'. Kundbilder och kontaktuppgifter sparas i högst 30 dagar, AI-resultat i 24 timmar.</li></ul><p>Nuvarande läge: <strong>'.(get_option('bb3d_cards_public',false)?'Öppen för kunder':'Testläge – endast behöriga WordPress-användare').'</strong>.</p>';
     if(current_user_can('manage_options')) { echo '<form method="post">';wp_nonce_field('bb3d_public');echo '<button class="button" name="bb3d_public" value="'.(get_option('bb3d_cards_public',false)?'no':'yes').'" '.(!$private?'disabled':'').'>'.(get_option('bb3d_cards_public',false)?'Återgå till testläge':'Öppna för kunder efter godkänt test').'</button></form>'; }
     if(current_user_can('manage_options')) {
         echo '<h2>Anslut OpenAI</h2><p>'.esc_html($key_notice).'</p><p>Nyckeln sparas krypterat och visas inte igen. Att spara den startar ingen bildgenerering. AI aktiveras separat i produktionskön.</p><form method="post">';wp_nonce_field('bb3d_save_ai_key');

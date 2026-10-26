@@ -28,7 +28,6 @@
   };
   let state = {profileId:'future-star-football',name:'SPELARNAMN',club:'Egen klubb',clubName:'MIN KLUBB',position:'ANFALLARE',total:87,
     stats:[88,84,81,91,67,99],primary:'#15181f',accent:'#ffffff',photo:null,logo:null,zoom:100,panX:0,panY:0};
-  let side = 'front';
   let photoSize = null, sourcePhoto = null;
   let ready = false;
   let exporting = false;
@@ -86,7 +85,6 @@
     if(size<8) { el.setAttribute('textLength',maxWidth); el.setAttribute('lengthAdjust','spacingAndGlyphs'); }
   }
   function buildSVG(which) {
-    if(which==='back'&&window.BB3D_BACK_CARD)return new DOMParser().parseFromString(window.BB3D_BACK_CARD(),'image/svg+xml').documentElement;
     const svg=new DOMParser().parseFromString(A[which],'image/svg+xml').documentElement;
     // Keep the original clip geometry, but avoid an ID collision with the upload input.
     const clip=svg.querySelector('clipPath#photo');
@@ -126,7 +124,7 @@
   function render() {
     if(!ready) return;
     if(!sending&&document.getElementById('approve')) $('approve').checked=false;
-    $('card').replaceChildren(buildSVG(side));
+    $('card').replaceChildren(buildSVG('front'));
     $('sum').textContent=`Poängsumma: ${state.stats.reduce((a,b)=>a+b,0)} · Medelvärde: ${(state.stats.reduce((a,b)=>a+b,0)/6).toFixed(1)}. Totalrating ändras bara av dig.`;
     $('club-caption').textContent=`${state.clubName.toLocaleUpperCase('sv-SE')} · ${state.primary===clubs[state.club].primary && state.accent===clubs[state.club].accent?clubs[state.club].name:'EGNA FÄRGER'}`;
     $('photo-controls').hidden=!state.photo;
@@ -210,9 +208,7 @@
     } catch(e) {status(e.message,true);} finally {photoReadPending=Math.max(0,photoReadPending-1);$(kind).value='';}
   });
   $('clear-photo').addEventListener('click',()=>{photoRead++;state.photo=null;sourcePhoto=null;photoSize=null;$('photo').value='';render();status('Fotot är borttaget.');});
-  for(const which of ['front','back']) $(`show-${which}`).addEventListener('click',()=>{
-    side=which;for(const s of ['front','back'])$(`show-${s}`).setAttribute('aria-pressed',String(s===side));render();
-  });
+
   function crc32(bytes) {
     let c=0xffffffff;
     for(const b of bytes){c^=b;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}

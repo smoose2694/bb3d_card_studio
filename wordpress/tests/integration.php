@@ -83,6 +83,19 @@ foreach(['future-star-floorball'=>'Egen innebandyklubb','future-star-handball'=>
     $value=BB3D\Cards\details(['profileId'=>$profile,'approved'=>true,'player'=>'TEST','customerName'=>'TEST','contact'=>'','club'=>$club,'clubName'=>'MIN KLUBB','position'=>$profile==='future-star-handball'?'MITTNIO':'FORWARD','stats'=>[90,90,90,90,90,90],'total'=>90]);check($value['profileId']===$profile,'New sport order validated');
 }
 $key='sk-'.str_repeat('SyntheticOnly',4);$sealed=BB3D\Cards\seal_api_key($key);check(strpos($sealed,$key)===false,'Key is not stored in plain text');check(BB3D\Cards\unseal_api_key($sealed)===$key,'Key decrypts server-side');check(BB3D\Cards\unseal_api_key(substr($sealed,0,-8))===null,'Tampered key fails closed');
+// Two prepayment attempts are shared across unpaid purchases for one signed browser.
+$trialActor=actorCookie('c');$trial1=$s->create(['id'=>wp_generate_uuid4(),'details'=>['customerName'=>'TRIAL','contact'=>'','packs'=>1]],$trialActor);$trial2=$s->create(['id'=>wp_generate_uuid4(),'details'=>['customerName'=>'TRIAL','contact'=>'','packs'=>1]],$trialActor);
+$s->changeControl(function(&$c){$c['settings']=['enabled'=>true,'dailyLimit'=>5000];$c['active']=null;return true;});
+$trialAI=new AI($s,function()use($result){return $result;});$tg=['id'=>wp_generate_uuid4(),'purchaseId'=>$trial1['id'],'slotId'=>$trial1['slots'][0]['id'],'profileId'=>'bb3d-fantasy','mode'=>'trainer','photo'=>$photo,'consent'=>true];
+$claim=endpoint(request('ai','claim','POST',['purchaseId'=>$tg['purchaseId'],'slotId'=>$tg['slotId']]));check($claim->get_status()===200&&$claim->get_data()['attemptsRemaining']===2,'Unpaid browser can claim two preview attempts');
+$first=$trialAI->generate($tg,$trialActor);check($first['status']==='done'&&$first['attemptsRemaining']===1,'Unpaid first preview succeeds');
+$s->changeControl(function(&$c){foreach($c['grants'] as &$g)$g['lastAttemptAt']=time()-31;return true;});$tg['id']=wp_generate_uuid4();$second=$trialAI->generate($tg,$trialActor);check($second['status']==='done'&&$second['attemptsRemaining']===0,'Unpaid second preview exhausts allowance');
+$tg2=$tg;$tg2['id']=wp_generate_uuid4();$tg2['purchaseId']=$trial2['id'];$tg2['slotId']=$trial2['slots'][0]['id'];$usage=$s->control()['usage'];fails(fn()=>$trialAI->generate($tg2,$trialActor),429);check($s->control()['usage']===$usage,'Another unpaid purchase cannot bypass browser cap');fails(fn()=>$trialAI->generate($tg2,$bob),404);
+$quota=endpoint(request('ai','quota','GET',null,['purchaseId'=>$tg2['purchaseId'],'slotId'=>$tg2['slotId']]));check($quota->get_data()['attemptsRemaining']===0,'Quota reflects shared browser cap');
+$paidTrial=$s->updateOrder($trial1['id'],['paid'=>true,'updatedAt'=>$trial1['createdAt']]);check($s->aiInfo($s->own($trial1['id'],$trialActor)['data'],['id'=>$tg['slotId']])['attemptsRemaining']===0,'Payment does not reset previews used for same motif');
+$bonus=['purchaseId'=>$trial2['id'],'slotId'=>$tg2['slotId'],'requestId'=>wp_generate_uuid4()];$res=endpoint(request('ai','bonus','POST',$bonus));check($res->get_status()===200,'Operator can extend unpaid previews');endpoint(request('ai','bonus','POST',$bonus));check($s->control()['trials'][$trialActor]['max']===4,'Repeated bonus request is idempotent');check($trialAI->generate($tg2,$trialActor)['status']==='done','Operator bonus enables another preview');
+fails(fn()=>$s->submit(['purchaseId'=>$trial2['id'],'slotId'=>$tg2['slotId'],'requestId'=>wp_generate_uuid4(),'imageHash'=>$hash,'details'=>$d],$trialActor),403);
+actorCookie('a');
 // Operator may choose a larger daily cap without resetting usage or grants.
 $before=$s->control();
 foreach([0,101,5000] as $limit){$res=endpoint(request('ai','settings','POST',['enabled'=>false,'dailyLimit'=>$limit]));check($res->get_status()===200&&$res->get_data()['dailyLimit']===$limit,'Daily cap accepts supported limits');}

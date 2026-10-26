@@ -17,7 +17,7 @@
   document.dispatchEvent(new Event('bb3d:profile-change'));
  }
  tabs.forEach(tab=>tab.addEventListener('click',()=>choose(tab.dataset.editor)));
- const update=()=>{document.getElementById('ai-unlock').hidden=!!window.BB3D_PURCHASE?.current()?.paid;};
+ const update=()=>{const c=window.BB3D_PURCHASE?.current();document.getElementById('ai-unlock').hidden=!!c&&(c.paid||c.preview);};
  document.addEventListener('bb3d:purchase-change',update);
  choose(window.BB3D_WP?.page==='fantasy'||location.pathname==='/fantasy'?'fantasy':'sports');
  update();

@@ -22,17 +22,17 @@ class Service {
     public function create($b,$actor) {
         demand(uuid($b['id']??null),400,'Ogiltigt köp.'); $d=$b['details']??[];
         demand(is_int($d['packs']??null)&&$d['packs']>=1&&$d['packs']<=25,400,'Välj 1–25 4-pack.');
-        $details=['customerName'=>text($d['customerName']??null,100,true),'contact'=>text($d['contact']??'',180),'packs'=>$d['packs'],'quantity'=>$d['packs']*4,'amountSEK'=>$d['packs']*100,'player'=>'Motiv väljs efter betalning','club'=>'Ej valt','clubName'=>'Ej valt'];
+        $details=['customerName'=>text($d['customerName']??null,100,true),'contact'=>text($d['contact']??'',180),'packs'=>$d['packs'],'quantity'=>$d['packs']*4,'amountSEK'=>$d['packs']*100,'player'=>'Motiv väljs av kunden','club'=>'Ej valt','clubName'=>'Ej valt'];
         $old=$this->store->read('orders/'.$b['id']);
-        if($old) { $r=$this->own($b['id'],$actor)['data']; demand($r['details']===$details,409,'Köpet har ändrats.'); return $this->view($r); }
+        if($old) { $r=$this->own($b['id'],$actor)['data'];$fields=array_flip(['customerName','contact','packs','quantity','amountSEK']); demand(array_intersect_key($r['details'],$fields)===array_intersect_key($details,$fields),409,'Köpet har ändrats.'); return $this->view($r); }
         $r=['id'=>$b['id'],'kind'=>'purchase','customer'=>$actor,'details'=>$details,'paid'=>false,'testOrder'=>false,'paidAt'=>null,'status'=>'new','createdAt'=>iso(),'expiresAt'=>iso(time()+30*86400),'slots'=>[]];
         for($i=0;$i<$d['packs'];$i++) $r['slots'][]=['id'=>wp_generate_uuid4()];
         try { $this->store->write('orders/'.$r['id'],$r,null,$actor); }
         catch(Failure $e) { if($e->status!==409) throw $e; return $this->create($b,$actor); }
         $this->statistics($r); return $this->view($r);
     }
-    public function slot($purchaseId,$slotId,$actor,$generation=true) {
-        $row=$this->own($purchaseId,$actor,true,$generation);
+    public function slot($purchaseId,$slotId,$actor,$generation=true,$paid=true) {
+        $row=$this->own($purchaseId,$actor,$paid,$generation);
         foreach($row['data']['slots'] as $i=>$s) if($s['id']===$slotId) { demand(!$generation||!isset($s['imagePath']),409,'Motivet är redan godkänt.'); return [$row,$i]; }
         throw new Failure(404,'Motivplatsen finns inte.');
     }
@@ -43,14 +43,20 @@ class Service {
         if($s['active']&&$s['active']['until']<=time()) { $id=$s['active']['id']; if(($s['jobs'][$id]['status']??null)==='running') { $s['jobs'][$id]['status']='uncertain'; $s['jobs'][$id]['message']='Försöket kunde inte bekräftas. Kontakta BB3D innan du försöker igen.'; } $s['active']=null; }
         foreach($s['jobs'] as $id=>$j) if($j['expiresAt']<=time()) unset($s['jobs'][$id]);
         foreach($s['grants'] as $id=>$g) if($g['expiresAt']<time()-86400) unset($s['grants'][$id]);
+        foreach($s['trials']??[] as $actor=>$trial)if($trial['expiresAt']<=time())unset($s['trials'][$actor]);
         foreach($s['usage'] as $d=>$n) if($d<day(iso(time()-3*86400))) unset($s['usage'][$d]);
         return $s;
     }
     public function changeControl($fn) { return $this->store->change('ai/control',function(&$s) use($fn){$s=$this->tidy($s); return $fn($s);},$this->initialControl()); }
     public function info($g=null) { $g=$g??['successes'=>0,'attempts'=>0,'maxImages'=>2,'maxAttempts'=>2,'expiresAt'=>0]; return ['remaining'=>max(0,$g['maxImages']-$g['successes']),'attemptsRemaining'=>max(0,$g['maxAttempts']-$g['attempts']),'maxAttempts'=>$g['maxAttempts'],'expiresAt'=>$g['expiresAt']*1000,'cooldownUntil'=>($g['lastAttemptAt']??0)?($g['lastAttemptAt']+30)*1000:0]; }
+    public function aiInfo($r,$slot,$c=null) {
+        $c=$c??$this->control();$info=$this->info($c['grants'][$this->grantKey($r,$slot)]??null);
+        if(!$r['paid']){$trial=$c['trials'][$r['customer']]??['used'=>0,'max'=>2];$left=max(0,$trial['max']-$trial['used']);$info['remaining']=min($info['remaining'],$left);$info['attemptsRemaining']=min($info['attemptsRemaining'],$left);$info['trial']=true;}
+        return $info;
+    }
     public function ensure($r,$s) {
-        $key=$this->grantKey($r,$s); $existing=$this->control(); if(isset($existing['grants'][$key])) return $this->info($existing['grants'][$key]);
-        return $this->changeControl(function(&$c) use($key,$r) { if(!isset($c['grants'][$key])) $c['grants'][$key]=['actor'=>$r['customer'],'expiresAt'=>strtotime($r['expiresAt']),'successes'=>0,'attempts'=>0,'maxImages'=>2,'maxAttempts'=>2,'bonusRequests'=>[]]; return $this->info($c['grants'][$key]); });
+        $key=$this->grantKey($r,$s); $existing=$this->control(); if(isset($existing['grants'][$key])) return $this->aiInfo($r,$s,$existing);
+        $this->changeControl(function(&$c) use($key,$r) { if(!isset($c['grants'][$key])) $c['grants'][$key]=['actor'=>$r['customer'],'expiresAt'=>strtotime($r['expiresAt']),'successes'=>0,'attempts'=>0,'maxImages'=>2,'maxAttempts'=>2,'bonusRequests'=>[]]; return $this->info($c['grants'][$key]); });return $this->aiInfo($r,$s);
     }
     public function submit($b,$actor) {
         demand(uuid($b['requestId']??null)&&is_string($b['imageHash']??null)&&preg_match('/^[a-f0-9]{64}$/D',$b['imageHash']),400,'Motivet har fel format.');
@@ -75,7 +81,7 @@ class Service {
     public function summary($r,$control=null) {
         $view=$this->view($r); $out=array_merge($r['details'],array_intersect_key($r,array_flip(['id','kind','createdAt','expiresAt','status','paid','paidAt','testOrder'])));
         $out['updatedAt']=$r['updatedAt']??$r['createdAt']; $out['complete']=$view['complete']; $out['slots']=[];
-        foreach($r['slots'] as $s) $out['slots'][]=['id'=>$s['id'],'ready'=>isset($s['imagePath']),'player'=>$s['details']['player']??null,'sport'=>$s['card']['sport']??null,'variant'=>$s['card']['variant']??null,'ai'=>$this->info($control['grants'][$this->grantKey($r,$s)]??null)];
+        foreach($r['slots'] as $s) $out['slots'][]=['id'=>$s['id'],'ready'=>isset($s['imagePath']),'player'=>$s['details']['player']??null,'sport'=>$s['card']['sport']??null,'variant'=>$s['card']['variant']??null,'ai'=>$this->aiInfo($r,$s,$control)];
         $presence=$this->store->read('presence/'.$r['id'])['data']??[]; $out['activeAt']=isset($presence['seenAt'])?$presence['seenAt']*1000:null; $out['activeSlot']=$presence['slotId']??null;
         return $out;
     }

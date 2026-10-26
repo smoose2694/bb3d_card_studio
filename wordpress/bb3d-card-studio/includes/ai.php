@@ -43,6 +43,7 @@ class AI {
             demand($g['attempts']<$g['maxAttempts']&&$g['successes']<$g['maxImages'],429,'Detta 4-packs AI-försök är använda. Kontakta BB3D.');
             demand(!isset($g['lastAttemptAt'])||$g['lastAttemptAt']<=time()-30,429,'Vänta 30 sekunder mellan bildförsöken.'); $day=day();
             demand(($s['usage'][$day]??0)<$s['settings']['dailyLimit'],429,'Dagens AI-tak är nått. Kontakta BB3D.');
+            if(!$r['paid']){$actor=$r['customer'];$trial=$s['trials'][$actor]??['used'=>0,'max'=>2,'expiresAt'=>time()+30*86400];demand($trial['used']<$trial['max'],429,'Dina två provförsök i denna webbläsare är använda. Kontakta BB3D.');$trial['used']++;$s['trials'][$actor]=$trial;}
             $g['attempts']++;$g['lastAttemptAt']=time();$s['usage'][$day]=($s['usage'][$day]??0)+1;
             $j=['id'=>$id,'actor'=>$r['customer'],'grant'=>$key,'fingerprint'=>$fingerprint,'status'=>'running','expiresAt'=>time()+86400];$s['jobs'][$id]=$j;$s['active']=['id'=>$id,'until'=>time()+360]; return ['start'=>true,'job'=>$j];
         });
@@ -62,12 +63,12 @@ class AI {
         demand(uuid($id),404,'AI-bilden finns inte.'); $s=$this->service->control();$j=$s['jobs'][$id]??null;
         demand($j&&$j['expiresAt']>time(),410,'AI-bilden har gått ut.');
         demand($j['actor']===$r['customer']&&$j['grant']===$this->service->grantKey($r,$slot),403,'AI-bilden tillhör en annan kundsession.');
-        return array_merge(['id'=>$j['id'],'status'=>$j['status'],'message'=>$j['message']??null],$this->service->info($s['grants'][$j['grant']]??null));
+        return array_merge(['id'=>$j['id'],'status'=>$j['status'],'message'=>$j['message']??null],$this->service->aiInfo($r,$slot,$s));
     }
     public function generate($b,$actor) {
         demand($this->ready(),503,'AI-nyckeln är inte ansluten.'); demand(($b['consent']??false)===true,400,'Godkänn att fotot skickas till OpenAI först.');
         $spec=$this->spec($b); $photo=inputPhoto($b['photo']??null);
-        [$row,$i]=$this->service->slot($b['purchaseId']??'',$b['slotId']??'',$actor);$r=$row['data'];$slot=$r['slots'][$i];
+        [$row,$i]=$this->service->slot($b['purchaseId']??'',$b['slotId']??'',$actor,true,false);$r=$row['data'];$slot=$r['slots'][$i];
         $this->service->ensure($r,$slot); $reservation=$this->start($b['id']??'',$r,$slot,hash('sha256',$photo.wp_json_encode($spec)));
         if(!$reservation['start']) return $this->job($b['id'],$r,$slot);
         $this->startedId=$b['id'];

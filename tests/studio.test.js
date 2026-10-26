@@ -21,7 +21,7 @@ async function setup(){
  const fetch=async url=>{if(url==='/api/config')return Response.json({orders:true});if(url.startsWith('/api/purchase'))return Response.json({purchases:[],ok:true});if(url==='/api/ai?action=config')return Response.json({available:false});throw Error('Unexpected request '+url);};
  const context=vm.createContext({window,document,DOMParser,XMLSerializer:class{serializeToString(n){return n.toString();}},FontFace,Image,Event:window.Event,URL,Blob,Response,Headers,AbortSignal,crypto:globalThis.crypto,fetch,localStorage:storage,sessionStorage:storage,location:{pathname:'/',origin:'https://fixture.test'},setInterval(){},console:{error:e=>errors.push(e),log(){}}});
  window.BB3D_CARD_PROFILES=cardProfiles;window.BB3D_ELEMENTS=elements;window.BB3D_CARD_ART={};window.BB3D_SAMPLE_ART_READY=Promise.resolve();
- for(const file of ['assets.js','fiskeviks-logo.js','card-back.js','fantasy-card.js','app.js','fantasy-preview.js','studio.js','purchase-client.js','ai-client.js'])vm.runInContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),context,{filename:file});
+ for(const file of ['assets.js','fiskeviks-logo.js','card-back.js','card-fonts.js','fantasy-card.js','app.js','fantasy-preview.js','studio.js','purchase-client.js','ai-client.js'])vm.runInContext(fs.readFileSync(new URL('../'+file,import.meta.url),'utf8'),context,{filename:file});
  await window.BB3D_AI_EDITOR.ready;await window.BB3D_PURCHASE.ready;await new Promise(resolve=>setImmediate(resolve));
  return {window,document,errors,change:(id,value)=>{document.getElementById(id).value=value;document.getElementById(id).dispatchEvent(new window.Event('input'));document.getElementById(id).dispatchEvent(new window.Event('change'));}};
 }
@@ -41,11 +41,10 @@ test('Switching card families keeps both drafts and moves the one AI panel besid
  for(const profile of ['future-star-hockey','future-star-floorball','future-star-handball']){c.change('sport',profile);assert.equal(c.window.BB3D_AI_EDITOR.getProfile(),profile);assert(d.querySelector('#card svg'));}
  d.querySelector('[data-editor=fantasy]').click();assert.equal(d.getElementById('f-fantasy-name').value,'ÄVENTYRAREN');assert.equal(c.errors.length,0);
 });
-test('Back preview stays identical while front fields change, in both families',async()=>{
- const c=await setup(),d=c.document;d.getElementById('show-back').click();const back=d.getElementById('card').innerHTML;
- c.change('name','ÄNDRAT NAMN');c.change('primary','#ff0000');assert.equal(d.getElementById('card').innerHTML,back);assert(back.includes('BB3D'));
- d.querySelector('[data-editor=fantasy]').click();d.getElementById('f-fantasy-back').click();const fantasyBack=d.getElementById('f-fantasy-card').innerHTML;
- c.change('f-element','is');c.change('f-fantasy-name','NYTT');assert.equal(d.getElementById('f-fantasy-card').innerHTML,fantasyBack);assert.equal(fantasyBack,back);
+test('Only fronts are shown and fields follow the card reading order',async()=>{
+ const c=await setup(),d=c.document;assert(!d.getElementById('show-back'));assert(!d.getElementById('f-fantasy-back'));assert(d.querySelector('#card svg'));
+ const inputs=[...d.querySelectorAll('#fantasy-editor input')].map(n=>n.id);assert(inputs.indexOf('f-ability')<inputs.indexOf('f-attack'));
+ d.querySelector('[data-editor=fantasy]').click();c.change('f-fantasy-name','Björn');assert(d.querySelector('#f-fantasy-card svg').textContent.includes('Björn'));assert.equal(c.errors.length,0);
 });
 test('All 18 monster recipes and both new sports are server validated with distinct environments',()=>{
  assert.equal(Object.keys(elements).length,18);

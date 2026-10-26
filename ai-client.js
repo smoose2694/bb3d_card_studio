@@ -4,6 +4,7 @@
   const $=id=>document.getElementById(id),KEY='bb3d-paid-ai-v1';let available=false,quota=null,resultURL=null,working=false,claimed=false,pending=null;
   let resultMotif=null;let context=null,contextKey=null;const versions=[];const scope=()=>context?{purchaseId:context.purchaseId,slotId:context.slotId}:{};const headers=()=>context?{'X-BB3D-Purchase':context.purchaseId,'X-BB3D-Slot':context.slotId}:{};
   const supportsAI=()=>true;
+  const canPreview=()=>context&&(context.paid||context.preview);
   const panel=()=>{$('ai-photo-panel').hidden=!supportsAI();};
   document.addEventListener('bb3d:editor-idle',refresh);
   document.addEventListener('bb3d:profile-change',()=>{panel();refresh();});
@@ -13,9 +14,9 @@
   const post=(action,data)=>api(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   function refresh(){
     const waiting=pending?.status==='running';$('ai-generate').textContent=waiting?'Kontrollera senaste försöket':quota?.remaining===1?'✦ Skapa en ny AI-version':'✦ Skapa mitt AI-motiv';
-    $('ai-generate').disabled=!supportsAI()||working||(!waiting&&(!context?.paid||!available||!claimed||!quota?.remaining||quota?.attemptsRemaining===0));
+    $('ai-generate').disabled=!supportsAI()||working||(!waiting&&(!canPreview()||!available||!claimed||!quota?.remaining||quota?.attemptsRemaining===0));
     $('ai-use').disabled=working||!resultURL;
-    if(quota)$('ai-quota').textContent=quota.attemptsRemaining+' av '+(quota.maxAttempts||2)+' AI-försök kvar för detta 4-pack. Även tekniska fel kan förbruka ett försök.';
+    if(quota)$('ai-quota').textContent=quota.attemptsRemaining+' av '+(quota.maxAttempts||2)+' AI-försök kvar'+(quota.trial?' före betalning i denna webbläsare':' för detta 4-pack')+'. Även tekniska fel kan förbruka ett försök.';
   }
   async function showResult(id){
     let version=versions.find(v=>v.id===id);
@@ -29,10 +30,10 @@
   }
   async function loadContext(){
     const next=window.BB3D_PURCHASE.current(),key=next?.slotId||'';
-    if(key===contextKey&&context?.paid===next?.paid){if(context?.paid&&!working){try{const result=await api('quota&purchaseId='+encodeURIComponent(context.purchaseId)+'&slotId='+encodeURIComponent(context.slotId));if(key===contextKey){quota=result;available=result.available;refresh();}}catch(e){message(e.message);}}return;}
+    if(key===contextKey&&context?.paid===next?.paid){if(canPreview()&&!working){try{const result=await api('quota&purchaseId='+encodeURIComponent(context.purchaseId)+'&slotId='+encodeURIComponent(context.slotId));if(key===contextKey){quota=result;available=result.available;refresh();}}catch(e){message(e.message);}}return;}
     context=next;contextKey=key;claimed=false;quota=null;pending=null;resultURL=null;for(const v of versions)URL.revokeObjectURL(v.url);versions.length=0;$('ai-result').hidden=true;$('ai-consent').checked=false;$('ai-quota').textContent='';
     try{const saved=JSON.parse(sessionStorage.getItem(KEY+contextKey)||'null');if(saved?.id)pending={id:saved.id,status:'running',motif:saved.motif};}catch{}
-    if(!context?.paid){message('Beställ och betala ett 4-pack, välj sedan en motivplats under kortinställningarna.');refresh();return;}
+    if(!canPreview()){message('Välj ett 4-pack och en motivplats under kortinställningarna.');refresh();return;}
     const captured=contextKey;
     try{const result=await post('claim',scope());if(captured!==contextKey)return;quota=result;claimed=true;if(pending)await resume();else message('Två AI-försök ingår. Ladda upp ett foto och godkänn AI-bearbetningen.');}
     catch(e){if(captured===contextKey){if(e.status===410){pending=null;remember();}message(e.message);}}finally{refresh();}
@@ -43,9 +44,9 @@
     if(working)return;let locked=false,previous=pending;
     try{
       if(!supportsAI())throw Error('AI-foto för detta kort är inte öppet ännu.');
-      if(!context?.paid)throw Error('Välj ett betalt 4-pack först.');
+      if(!canPreview())throw Error('Välj ett 4-pack och en motivplats först.');
       if(pending?.status==='running'){working=true;refresh();await resume();return;}
-      if(!$('ai-consent').checked)throw Error('Godkänn att fotot skickas till OpenAI först.');if(!claimed)throw Error('Välj din betalda motivplats först.');
+      if(!$('ai-consent').checked)throw Error('Godkänn att fotot skickas till OpenAI först.');if(!claimed)throw Error('Välj din motivplats först.');
 
       editor.busy(true);locked=true;working=true;refresh();const photo=await photoPNG();pending={id:crypto.randomUUID(),status:'running',motif:editor.getMotif?.()||{club:editor.getClub()}};remember();refresh();message('Skapar ditt kortmotiv. Det kan ta några minuter. Låt sidan vara öppen.');
       const data=await post('generate',{id:pending.id,...scope(),...pending.motif,photo,consent:true});pending.status=data.status;quota.remaining=data.remaining;remember();
