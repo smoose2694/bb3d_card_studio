@@ -28,7 +28,7 @@ test('New orders save server-owned sport/product identity without changing Swish
  const saved=(await s.read(C.recordPath(id))).data;assert.deepEqual(saved.card,cardIdentity(cardProfile()));assert.equal(saved.details.profileId,FOOTBALL_PROFILE);
  assert.equal(receipt.payment.amountSEK,100);assert.equal(receipt.payment.recipient,'1233661089');
  await C.receipt(s,id,'fixture-customer',{details:raw,imageHash:hash});assert.equal(s.binaryReads,1);
- const stat=(await s.read('statistics/'+id+'.json')).data;assert.equal(stat.sportId,'football');assert.equal(stat.product,'Future Star � 4-pack');
+ const stat=(await s.read('statistics/'+id+'.json')).data;assert.equal(stat.sportId,'football');assert.equal(stat.product,'Future Star · 4-pack');
 });
 test('A pre-profile order retry returns the original receipt without another upload or duplicate',async()=>{
  const s=new Store(),id=randomUUID(),imageHash=C.sha('old-synthetic-print');const {profileId,...legacy}=C.details(raw);
@@ -40,9 +40,9 @@ test('A pre-profile order retry returns the original receipt without another upl
 });
 test('Historical football and saved future sport snapshots keep distinct sales identities',()=>{
  const order={id:randomUUID(),createdAt:'2026-10-26T10:00:00Z',paid:true,paidAt:'2026-10-26T11:00:00Z',status:'new',details:C.details(raw)};
- const old=salesRecord(order);assert.equal(old.sportId,'football');assert.equal(old.product,'Future Star � 4-pack');
+ const old=salesRecord(order);assert.equal(old.sportId,'football');assert.equal(old.product,'Future Star · 4-pack');
  // A future persisted order is a fixture, not an enabled customer profile.
- const futureCard={profileId:'synthetic-handball',productId:'future-star-four-pack',product:'Future Star � 4-pack',sportId:'handball',sport:'Handboll'};
+ const futureCard={profileId:'synthetic-handball',productId:'future-star-four-pack',product:'Future Star · 4-pack',sportId:'handball',sport:'Handboll'};
  const future=salesRecord({...order,card:futureCard});assert.equal(future.sport,'Handboll');assert.equal(future.profileId,'synthetic-handball');
  const stats=aggregateSales([old,future]);assert.equal(stats.paidSEK,200);assert.equal(stats.products.length,2);assert(stats.products.some(p=>p.name.includes('Handboll')));assert(stats.products.some(p=>p.name.includes('Fotboll')));
 });

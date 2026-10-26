@@ -1,11 +1,11 @@
-# Sportprofiler - f�rsta f�rberedelsen
+# Sportprofiler – första förberedelsen
 
-Endast Future Star-fotboll �r �ppet f�r best�llning. Befintliga fem f�reningar och Egen klubb har samma f�rger, mall, positioner, PNG-m�tt, fyrpack och pris som tidigare. Inga hockey- eller Pok�mon-klubbar l�ggs till i denna etapp.
+Endast Future Star-fotboll är öppet för beställning. Befintliga fem föreningar och Egen klubb har samma färger, mall, positioner, PNG-mått, fyrpack och pris som tidigare. Inga hockey- eller Pokémon-klubbar läggs till i denna etapp.
 
-`lib/card-profiles.js` �r serverns katalog f�r till�tna sportprofiler. Den h�ller sportidentitet, produktidentitet, f�reningar och positioner �tskilda. Kunden kan ange `profileId`; utel�mnat v�rde betyder den befintliga fotbollsprofilen. Ok�nda eller �nnu of�rberedda profiler avvisas. Produkt- och sportnamn samt pris best�ms av servern.
+`lib/card-profiles.js` är serverns katalog för tillåtna sportprofiler. Den håller sportidentitet, produktidentitet, föreningar och positioner åtskilda. Kunden kan ange `profileId`; utelämnat värde betyder den befintliga fotbollsprofilen. Okända eller ännu oförberedda profiler avvisas. Produkt- och sportnamn samt pris bestäms av servern.
 
-Nya order sparar en �gonblicksbild i `order.card` med profil, produkt och sport. Statistiken l�ser dessa sparade v�rden, s� att en framtida namn�ndring i katalogen inte skriver om vad som s�ldes. �ldre order utan metadata r�knas som den ursprungliga fotbollsprodukten och beh�ller sina sparade priser. Gamla kvittof�rs�k kan �terupptas med den tidigare kontrollsumman; en �ndrad best�llning eller en annan kund kan inte �teranv�nda kvittot.
+Nya order sparar en ögonblicksbild i `order.card` med profil, produkt och sport. Statistiken läser dessa sparade värden, så att en framtida namnändring i katalogen inte skriver om vad som såldes. Äldre order utan metadata räknas som den ursprungliga fotbollsprodukten och behåller sina sparade priser. Gamla kvittoförsök kan återupptas med den tidigare kontrollsumman; en ändrad beställning eller en annan kund kan inte återanvända kvittot.
 
-Innan ytterligare en profil aktiveras beh�ver editorn, servervalideringen, idempotens f�r den nya profilen, statistik, motivval, klubbr�ttigheter och tryckfilen kontrolleras tillsammans. Idag skickar editorn ingen profil eftersom bara standardprofilen finns. N�sta sport b�r f�rst byggas som en separat testbar f�rhandsvisning. FBK Karlstad �r en fotbollsf�rening och ska inte automatiskt kopplas till ett hockeylag.
+Innan ytterligare en profil aktiveras behöver editorn, servervalideringen, idempotens för den nya profilen, statistik, motivval, klubbrättigheter och tryckfilen kontrolleras tillsammans. Idag skickar editorn ingen profil eftersom bara standardprofilen finns. Nästa sport bör först byggas som en separat testbar förhandsvisning. FBK Karlstad är en fotbollsförening och ska inte automatiskt kopplas till ett hockeylag.
 
-28 tester passerar: tidigare 24 samt fyra profilprov f�r validering, serverbest�md metadata/pris, �ldre kvittoretry och separata sportgrupper i statistiken. Proven anv�nder syntetiska filer och minneslagring. Inga riktiga order, betalningar eller AI-anrop skapades.
+28 tester passerar: tidigare 24 samt fyra profilprov för validering, serverbestämd metadata/pris, äldre kvittoretry och separata sportgrupper i statistiken. Proven använder syntetiska filer och minneslagring. Inga riktiga order, betalningar eller AI-anrop skapades.
