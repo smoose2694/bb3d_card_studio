@@ -1,3 +1,6 @@
+## Kundnamn
+Korttypen visas som Pokémonkort i kundgränssnittet och beskrivs som Pokémonliknande kort med BB3D:s egen design. Kortets rubrik, navigering, bekräftelse, produktnamn och adminetiketter använder samma namn. Befintliga profil-ID:n och den interna klubbnyckeln behålls för kompatibilitet med sparade köp.
+
 ## Kläder och miljö per motiv
 Bildinstruktionerna kräver att källfotots kläder och bakgrund ersätts helt. Fotboll använder matchtröja och gräsplan; förberedda klubbar behåller sina godkända emblem och tröjfärger, inklusive röd/vit FBK Karlstad. Hockey använder långärmad hockeytröja över skydd, is och sarg i ishall. Ansiktet hålls synligt. Egna sportklubbar använder valda huvud- och accentfärger.
 
