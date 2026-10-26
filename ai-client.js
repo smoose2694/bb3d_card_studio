@@ -15,7 +15,7 @@
     const waiting=pending?.status==='running';$('ai-generate').textContent=waiting?'Kontrollera senaste försöket':quota?.remaining===1?'Skapa en ny version':'Skapa AI-foto';
     $('ai-generate').disabled=!supportsAI()||working||(!waiting&&(!context?.paid||!available||!claimed||!quota?.remaining||quota?.attemptsRemaining===0));
     $('ai-use').disabled=working||!resultURL;
-    if(quota)$('ai-quota').textContent=quota.attemptsRemaining+' av 2 AI-försök kvar för detta 4-pack. Även tekniska fel kan förbruka ett försök.';
+    if(quota)$('ai-quota').textContent=quota.attemptsRemaining+' av '+(quota.maxAttempts||2)+' AI-försök kvar för detta 4-pack. Även tekniska fel kan förbruka ett försök.';
   }
   async function showResult(id){
     let version=versions.find(v=>v.id===id);
@@ -29,7 +29,7 @@
   }
   async function loadContext(){
     const next=window.BB3D_PURCHASE.current(),key=next?.slotId||'';
-    if(key===contextKey&&context?.paid===next?.paid)return;
+    if(key===contextKey&&context?.paid===next?.paid){if(context?.paid&&!working){try{const result=await api('quota&purchaseId='+encodeURIComponent(context.purchaseId)+'&slotId='+encodeURIComponent(context.slotId));if(key===contextKey){quota=result;available=result.available;refresh();}}catch(e){message(e.message);}}return;}
     context=next;contextKey=key;claimed=false;quota=null;pending=null;resultURL=null;for(const v of versions)URL.revokeObjectURL(v.url);versions.length=0;$('ai-result').hidden=true;$('ai-consent').checked=false;$('ai-quota').textContent='';
     try{const saved=JSON.parse(sessionStorage.getItem(KEY+contextKey)||'null');if(saved?.id)pending={id:saved.id,status:'running',motif:saved.motif};}catch{}
     if(!context?.paid){message('Beställ och betala ett 4-pack, välj sedan en motivplats överst på sidan.');refresh();return;}
@@ -55,6 +55,6 @@
     finally{if(locked)editor.busy(false);working=false;refresh();}
   };
   $('ai-use').onclick=async()=>{try{if(!supportsAI())throw Error('Välj en motivplats för att använda AI-bilden.');if(!resultURL)return;if(JSON.stringify(resultMotif)!==JSON.stringify(editor.getMotif?.()||{club:editor.getClub()}))throw Error('Denna AI-bild skapades med andra motivval. Återställ korttyp, klubb och element för att använda den.');const blob=await(await fetch(resultURL)).blob(),src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Bilden kunde inte läsas.'));reader.readAsDataURL(blob);});await editor.apply(src);message('AI-bilden används nu. Granska kortet och godkänn beställningen.');}catch(e){message(e.message);}};
-  try{if(!editor.getConnection()?.orders)return;const config=await api('config');available=config.available;panel();await loadContext();refresh();}
-  catch{}
+  try{if(!editor.getConnection()?.orders)return;panel();const config=await api('config');available=config.available;await loadContext();refresh();}
+  catch(e){panel();message(e.message);refresh();}
 })();
