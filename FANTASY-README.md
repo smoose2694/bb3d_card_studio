@@ -1,3 +1,9 @@
+## Publicerad integration
+Fantasy delar nu köp, Swish, betalkontroll och två API-försök per 4-pack med sportkorten. Tränare/monster, eld/vatten/skog/blixt. PNG-framsida 1488x2079 med pHYs 23619/23625 för 63x88mm, inget gloss. Kunden väljer foto, godkänner OpenAI-bearbetning, väljer AI-version och godkänner kortet. Resultatet skickas automatiskt privat till admin; inga mejl eller manuell kundexport behövs. Adminvyn Redo att printa visar betalda kompletta köp. Tränare/monster särredovisas i statistiken. Baksidan använder befintligt förtryckt underlag; egen fantasybaksida återstår.
+
+AI använder serverstyrda motivinstruktioner och befintligt modellval enligt https://developers.openai.com/api/reference/resources/images/methods/edit (kontrollerad 2026-10-26). Sportpromptar omfattar också hockey och egen fotbollsklubb med valda färger. Ingen verklig OpenAI-bild eller fysisk utskrift har ännu kvalitetsgranskats. Alla automatiska prov använder syntetiska data och mockad bildtjänst.
+
+### Tidigare förhandsvisning
 # BB3D Fantasy – första mallen
 
 `/fantasy` är en separat Pokémon-inspirerad förhandsvisning med en egen BB3D-design. Den öppnar inte någon ny produkt för beställning och ändrar inte de publicerade fotbolls- eller hockeyflödena.

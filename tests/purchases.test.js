@@ -48,3 +48,9 @@ test('Purchase HTTP boundaries reject cross-session reads, cross-origin writes a
  const res=await send('create',{body:{id:randomUUID(),details:{...raw,paid:true,amountSEK:1}}});assert.equal(res.status,201);const {purchase}=await res.json();assert.equal(purchase.paid,false);assert.equal(purchase.payment.amountSEK,300);
  assert.equal((await send('status&id='+purchase.id,{customer:'other'})).status,404);
 });
+test('Operator-marked paid test purchases remain usable for controlled AI checks without becoming sales',async()=>{
+ const {s,p}=await setup(1);let version=await C.updateOrder(s,p.id,{testOrder:true},p.createdAt);version=await C.updateOrder(s,p.id,{paid:true},version.updatedAt);
+ const stats=await C.orderStats(s);assert.equal(stats.paidSEK,0);assert.equal(stats.paidOrders,0);assert.equal(stats.paidPacks,0);assert.equal(stats.excludedTests,1);
+ const grant=await P.paidPackGrant(s,p.id,p.slots[0].id,actor);assert.match(grant.code,/^[A-F0-9]{16}$/);assert.equal((await C.orderList(s))[0].testOrder,true);
+ await assert.rejects(()=>C.updateOrder(s,p.id,{testOrder:'yes'},version.updatedAt),e=>e.status===400);
+});

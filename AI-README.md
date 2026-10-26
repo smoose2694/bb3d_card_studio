@@ -1,3 +1,7 @@
+## Motivvarianter och operatörsprov
+AI för fotboll (inklusive egen klubb), hockey och fantasy/tränare/monster använder samma betalda motivplats. Val av korttyp eller element ger inga extra försök. Interna motivinstruktioner valideras på servern; kunden kan inte välja dyrare modell eller antal bilder. Kunden får sina sparade köp i samma signerade webbläsarsession (förnyas upp till 30 dagar).
+Operatören kan markera Testorder i admin. Sådana order utesluts från all försäljningsstatistik. För ett kontrollerat bildprov kan operatören också markera betalkontrollen på testordern; AI-försöken räknas fortfarande mot det verkliga globala dygnstaket och kan kosta hos OpenAI. Inga sådana produktionsprov har gjorts av agenten. Dygnstaket i produktion ligger kvar på 2 för första manuella bildprovet.
+
 ## Aktuellt: betalda 4-pack ersätter mässkoder
 Kunden köper 1–25 4-pack före motivarbetet. Serverpris 100 kr/pack, Swish 1233661089. Operatörens befintliga betalningsmarkering öppnar en stabil grant per motivplats med 2 API-försök totalt, även tekniska fel. Två lyckade bilder är övre gräns. Betalningsrättning, omstart och nya flikar återställer inte försök. Dygnstak och cooldown består. API-voucher svarar 410. Äldre interna kodtester behålls för kontrollmotorns regressioner. Inga kundkoder i gränssnittet. Produktion kräver betalt och alla motiv godkända. Ett köp räknas en gång i försäljningsstatistiken; varje pack bidrar med sin sport/förening efter godkännande. Gamla beställningar förblir läsbara.
 

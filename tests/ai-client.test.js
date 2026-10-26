@@ -32,7 +32,7 @@ async function client({available=true,saved=null,networkFailure=false}={}){
   if(action==='result')return new Response(new Blob(['synthetic image'],{type:'image/png'}));
   throw Error('Unexpected fixture request');
  };
- const editor={ready:Promise.resolve(),getConnection:()=>({orders:true}),getPhoto:()=>'data:image/png;base64,synthetic',getClub:()=>'FBK Karlstad',getProfile:()=>profileId,busy:value=>locks.push(value)};
+ const editor={ready:Promise.resolve(),getConnection:()=>({orders:true}),getPhoto:()=>'data:image/png;base64,synthetic',getClub:()=>'FBK Karlstad',getProfile:()=>profileId,getMotif:()=>({profileId,club:profileId==='future-star-hockey'?'Egen hockeyklubb':'FBK Karlstad',primary:'#1c6192',accent:'#ffffff'}),busy:value=>locks.push(value)};
  class Image{constructor(){this.width=100;this.height=100;}set src(value){queueMicrotask(()=>this.onload());}}
  await runInNewContext(source,{window:{BB3D_AI_EDITOR:editor,BB3D_PURCHASE:{ready:Promise.resolve(),current:()=>({purchaseId:'purchase-test',slotId:'slot-test',paid:true})}},document:{getElementById:node,addEventListener:(name,fn)=>{listeners[name]=fn;},createElement:tag=>tag==='canvas'?{getContext:()=>({drawImage(){}}),toDataURL:()=>'data:image/png;base64,synthetic'}:new Element()},fetch,Image,crypto:{randomUUID},URL:{createObjectURL:()=>{const u='blob:synthetic-'+urls.length;urls.push(u);return u;},revokeObjectURL(){}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}});
  return{node,storage,locks,requests,jobs,changeProfile:value=>{profileId=value;listeners["bb3d:profile-change"]();},setStatus:value=>{status=value;},activate:async()=>{}};
@@ -44,7 +44,7 @@ test('AI client stays hidden when disabled and never sends a photo without conse
 test('A lost generation response resumes the existing job instead of paying for another attempt',async()=>{
  const c=await client({networkFailure:true});await c.activate();c.node('ai-consent').checked=true;
  await c.node('ai-generate').onclick();assert.deepEqual(c.locks,[true,false]);assert.equal(c.requests.filter(r=>r.action==='generate').length,1);
- const saved=JSON.parse(c.storage.get(KEY));assert(saved.id);assert.deepEqual(Object.keys(saved),['id']);assert(!c.storage.get(KEY).includes(CODE));
+ const saved=JSON.parse(c.storage.get(KEY));assert(saved.id);assert.deepEqual(Object.keys(saved),['id','motif']);assert(!c.storage.get(KEY).includes(CODE));
  await c.node('ai-generate').onclick();assert.equal(c.requests.filter(r=>r.action==='generate').length,1);assert.equal(c.requests.filter(r=>r.action==='status').length,1);assert.equal(c.node('ai-result').hidden,false);assert.equal(c.node('ai-versions').children.length,1);
  // Rechecking the same completed result also reuses the already fetched image.
  assert.equal(c.requests.filter(r=>r.action==='result').length,1);
@@ -55,9 +55,7 @@ test('An expired pending job is cleared and two completed versions disable furth
  const image=c.node('ai-result-image'),first=c.node('ai-versions').children[0];first.onclick();assert.equal(image.src,'blob:synthetic-0');
 });
 
-test('Football AI cannot generate or apply a result while the editor is set to hockey',async()=>{
- const c=await client();await c.activate();c.node('ai-consent').checked=true;c.changeProfile('future-star-hockey');
- assert.equal(c.node('ai-photo-panel').hidden,true);assert.equal(c.node('ai-generate').disabled,true);
- await c.node('ai-generate').onclick();await c.node('ai-use').onclick();assert.equal(c.requests.filter(r=>r.action==='generate').length,0);
- c.changeProfile('future-star-football');assert.equal(c.node('ai-photo-panel').hidden,false);assert.equal(c.node('ai-generate').disabled,false);
+test('Hockey uses the same paid allowance and sends its own server-validated sport recipe',async()=>{
+ const c=await client();c.changeProfile('future-star-hockey');c.node('ai-consent').checked=true;assert.equal(c.node('ai-photo-panel').hidden,false);await c.node('ai-generate').onclick();const request=c.requests.find(r=>r.action==='generate');assert.equal(request.body.profileId,'future-star-hockey');assert.equal(request.body.club,'Egen hockeyklubb');assert.equal(request.body.purchaseId,'purchase-test');assert.equal(request.body.slotId,'slot-test');assert(!('code' in request.body));
+ c.changeProfile('future-star-football');await c.node('ai-use').onclick();assert.match(c.node('ai-photo-status').textContent,/andra motivval/);
 });
