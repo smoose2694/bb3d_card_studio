@@ -7,6 +7,8 @@ import {sha,DAY,cleanup} from '../lib/core.js';
 import {inputImage,imagePNG} from '../lib/ai-images.js';
 import {requestFootballEdit,IMAGE_MODEL} from '../lib/ai-provider.js';
 import {createAIHandler} from '../lib/ai-handler.js';
+import {createPurchase,paidPackGrant} from '../lib/purchases.js';
+import {updateOrder} from '../lib/core.js';
 import {token} from '../lib/core.js';
 class Store{
   constructor(){this.rows=new Map();this.images=new Map();this.version=0;}
@@ -41,7 +43,7 @@ test('Double clicks and concurrent customers reserve only one API attempt',async
 test('Two successful images use the code and replay cannot call the provider again',async()=>{
  const{s,grant}=await setup(),first=randomUUID();await start(s,grant,first);await A.finishImage(s,first,{ok:true,imagePath:'ai/results/first.png'},NOW+60000);
  assert.equal((await start(s,grant,first,NOW+61000)).start,false);const second=randomUUID();await start(s,grant,second,NOW+61000);await A.finishImage(s,second,{ok:true,imagePath:'ai/results/second.png'},NOW+120000);
- await assert.rejects(()=>start(s,grant,randomUUID(),NOW+121000),/Båda bilderna/);
+ await assert.rejects(()=>start(s,grant,randomUUID(),NOW+121000),/Båda AI-bilderna/);
  assert.equal((await A.ownImage(s,first,grant.code,actor,NOW+121000)).remaining,0);
  await assert.rejects(()=>A.ownImage(s,first,grant.code,sha('other'),NOW+121000),e=>e.status===403);
  await assert.rejects(()=>A.beginImage(s,{id:first,code:grant.code,actor,fingerprint:sha('changed-photo')},NOW+121000),e=>e.status===409);
@@ -92,15 +94,15 @@ test('AI HTTP flow enforces admin, origin, consent and private image ownership e
  const s=new Store(),env={ADMIN_PASSWORD:'synthetic-admin-password-only',ADMIN_SESSION_SECRET:'synthetic-session-secret-longer-than-32',BLOB_READ_WRITE_TOKEN:'synthetic-blob-token',OPENAI_API_KEY:'synthetic-openai-key'};let calls=0;
  const handler=createAIHandler({loadStore:async()=>s,getEnv:()=>env,editImage:async args=>{calls++;assert.equal(args.club,'FBK Karlstad');assert.equal(args.safetyIdentifier,sha('customer-one'));assert(!('model' in args));return png(1536,1024);}});
  const cookie=(kind,id)=>'__Host-bb3d_'+kind+'='+token(kind,id,100,env);
- async function send(action,{who='customer',method='GET',body,code,origin='https://studio.test'}={}){const headers={origin};if(who==='admin')headers.cookie=cookie('admin','operator');if(who==='customer')headers.cookie=cookie('customer','customer-one');if(who==='other')headers.cookie=cookie('customer','customer-two');if(code)headers['x-bb3d-ai-code']=code;if(body)headers['content-type']='application/json';return handler(new Request('https://studio.test/api/ai?action='+action,{method,headers,...(body?{body:JSON.stringify(body)}:{})}));}
+ async function send(action,{who='customer',method='GET',body,code,origin='https://studio.test'}={}){const headers={origin};if(who==='admin')headers.cookie=cookie('admin','operator');if(who==='customer')headers.cookie=cookie('customer','customer-one');if(who==='other')headers.cookie=cookie('customer','customer-two');if(code){headers['x-bb3d-purchase']=purchase.id;headers['x-bb3d-slot']=purchase.slots[0].id;}if(body)headers['content-type']='application/json';return handler(new Request('https://studio.test/api/ai?action='+action,{method,headers,...(body?{body:JSON.stringify(body)}:{})}));}
  assert.equal((await send('admin',{who:'customer'})).status,401);assert.equal((await send('config',{who:'none'})).status,401);
  assert.equal((await send('settings',{who:'admin',method:'POST',body:{enabled:true,dailyLimit:2},origin:'https://other.test'})).status,403);
  assert.equal((await send('settings',{who:'admin',method:'POST',body:{enabled:true,dailyLimit:2}})).status,200);
- const grant=await(await send('voucher',{who:'admin',method:'POST',body:{}})).json();assert(grant.code);
- const id=randomUUID(),body={id,code:grant.code,club:'FBK Karlstad',photo:'data:image/png;base64,'+png().toString('base64'),consent:false,model:'untrusted-client-model'};
+ assert.equal((await send('voucher',{who:'admin',method:'POST',body:{}})).status,410);const purchase=await createPurchase(s,randomUUID(),'customer-one',{packs:1,customerName:'SYNTHETIC',contact:''});await updateOrder(s,purchase.id,{paid:true},purchase.createdAt);const grant=await paidPackGrant(s,purchase.id,purchase.slots[0].id,'customer-one');
+ const id=randomUUID(),body={id,purchaseId:purchase.id,slotId:purchase.slots[0].id,club:'FBK Karlstad',photo:'data:image/png;base64,'+png().toString('base64'),consent:false,model:'untrusted-client-model'};
  assert.equal((await send('generate',{method:'POST',body})).status,400);assert.equal(calls,0);
  body.consent=true;const generated=await(await send('generate',{method:'POST',body})).json();assert.equal(generated.status,'done');assert.equal(generated.remaining,1);assert(!('imagePath' in generated));assert.equal(calls,1);
  const replay=await(await send('generate',{method:'POST',body})).json();assert.equal(replay.status,'done');assert.equal(calls,1);
- assert.equal((await send('result&id='+id,{who:'other',code:grant.code})).status,403);
+ assert.equal((await send('result&id='+id,{who:'other',code:grant.code})).status,404);
  const image=await send('result&id='+id,{code:grant.code});assert.equal(image.status,200);assert.equal(image.headers.get('cache-control'),'no-store');assert.equal(image.headers.get('content-type'),'image/png');assert(Buffer.from(await image.arrayBuffer()).equals(png(1536,1024)));
 });

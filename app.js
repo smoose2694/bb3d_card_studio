@@ -251,14 +251,12 @@
   async function connectOrders(){try{const r=await fetch('/api/config');if(!r.ok)throw Error();connection=await r.json();$('submit-order').disabled=!connection.orders;$('order-status').textContent=connection.orders?'Redo att skicka din beställning till BB3D.':'Beställningsmottagningen är inte ansluten ännu. Inget kan skickas.';}catch{$('submit-order').disabled=true;$('order-status').textContent='Ingen anslutning till BB3D. Försök ladda om sidan.';}}
   async function submitOrder(event){event.preventDefault();if(sending)return;try{if(aiWorking)throw Error('Vänta tills AI-fotot är färdigt.');
     if(!connection?.orders)throw Error('Beställningsmottagningen är inte ansluten.');if(!state.photo)throw Error('Ladda upp ett spelarfoto först.');if(photoReadPending)throw Error('Vänta tills bilden har lästs in.');if(!state.name.trim()||state.name.trim().toUpperCase()==='SPELARNAMN')throw Error('Ange spelarens namn på kortet.');if(!$('approve').checked)throw Error('Granska kortet och godkänn förhandsvisningen först.');if(!$('editor-form').reportValidity())return;
-    const details={profileId:state.profileId,customerName:$('customer-name').value.trim(),contact:$('contact').value.trim(),quantity:Number($('quantity').value)*4,approved:true,player:state.name.trim(),club:state.club,clubName:state.clubName,position:state.position,stats:[...state.stats],total:state.total};
-    sending=true;const controls=[...document.querySelectorAll('input,select,button')],previous=controls.map(n=>n.disabled);controls.forEach(n=>n.disabled=true);$('submit-order').textContent='Skickar ditt kort…';$('receipt').hidden=true;$('payment').hidden=true;$('swish-link').removeAttribute('href');side='front';render();
-    try{const png=await exportPNG('front');if(!png||png.size>12*1024*1024)throw Error('Kortfilen är för stor. Välj en mindre bild.');const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await png.arrayBuffer()))).map(n=>n.toString(16).padStart(2,'0')).join(''),signature=hash+JSON.stringify(details);
-      if(!pending||pending.signature!==signature)pending={signature,id:crypto.randomUUID(),uploaded:false,confirmed:false};
-      if(!pending.uploaded){$('order-status').textContent='Laddar upp din färdiga kortbild…';try{await window.BB3D_UPLOAD(connection.uploadPrefix+pending.id+'.png',png,p=>{$('order-status').textContent='Laddar upp kortbilden: '+Math.round(p.percentage)+' %';});pending.uploaded=true;}catch(e){if(!/already exists|alreadyexists/i.test(e.message))throw e;pending.uploaded=true;}}
-      $('order-status').textContent='Bekräftar att BB3D har tagit emot beställningen…';const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:pending.id,details,imageHash:hash})}),data=await r.json();if(!r.ok||!data.receipt)throw Error(data.error||'Beställningen kunde inte bekräftas.');pending.confirmed=true;$('receipt').textContent='Tack! BB3D har tagit emot din beställning '+data.receipt.id.slice(0,8).toUpperCase()+'. '+details.quantity+' kort för '+details.player+'.';$('receipt').hidden=false;const payment=data.receipt.payment;if(payment){$('payment-summary').textContent=payment.amountSEK+' kr till '+payment.recipient+' · Meddelande: '+payment.message;$('swish-link').href=payment.url;$('swish-link').textContent='Öppna Swish – '+payment.amountSEK+' kr';$('payment').hidden=false;}$('order-status').textContent='Beställningen är mottagen. Betala med Swish och visa betalningen för BB3D innan tillverkning.';status('Beställningen är mottagen.');
-    }finally{controls.forEach((n,i)=>n.disabled=previous[i]);$('submit-order').textContent='Bekräfta för utskrift';sending=false;}
-  }catch(e){$('order-status').textContent=e.message+' Om du inte har fått ett kvitto kan du försöka igen. Samma beställning skickas inte dubbelt.';status(e.message,true);sending=false;}}
+    const details={profileId:state.profileId,approved:true,player:state.name.trim(),club:state.club,clubName:state.clubName,position:state.position,stats:[...state.stats],total:state.total};
+    if(!window.BB3D_PURCHASE?.current()?.paid)throw Error('Välj ett betalt 4-pack överst på sidan först.');
+    sending=true;const controls=[...document.querySelectorAll('input,select,button')],previous=controls.map(n=>n.disabled);controls.forEach(n=>n.disabled=true);$('submit-order').textContent='Sparar motivet…';
+    try{const png=await exportPNG('front');if(!png||png.size>12*1024*1024)throw Error('Kortfilen är för stor.');await window.BB3D_PURCHASE.submit({png,details,editor:{primary:state.primary,accent:state.accent}});$('order-status').textContent='Motivet är sparat för utskrift. Välj nästa 4-pack överst på sidan.';status('Motivet är godkänt.');}
+    finally{controls.forEach((n,i)=>n.disabled=previous[i]);$('submit-order').textContent='Godkänn detta 4-pack för utskrift';$('approve').checked=false;sending=false;}
+  }catch(e){$('order-status').textContent=e.message;status(e.message,true);sending=false;}}
   $('quantity').addEventListener('input',()=>{const packs=Number($('quantity').value);$('order-total').textContent=Number.isInteger(packs)&&packs>=1&&packs<=25?packs+' × 4-pack · '+packs*4+' kort · totalt '+packs*100+' kr':'Välj 1–25 stycken 4-pack.';});
   let photoReadPending=0;
 
@@ -272,10 +270,18 @@
       status('Redo. Ladda upp en bild och skapa ditt kort.');
     }catch(e){status('Kunde inte starta studion: '+e.message,true);}
   }
+  let slotKey=null;const packDrafts=new Map();
+  document.addEventListener('bb3d:purchase-change',()=>{
+    const current=window.BB3D_PURCHASE?.current(),key=current?.slotId||null;if(key===slotKey)return;
+    if(slotKey)packDrafts.set(slotKey,{state:{...state,stats:[...state.stats]},photoSize,sourcePhoto});slotKey=key;
+    const saved=key&&packDrafts.get(key);if(saved){state={...saved.state,stats:[...saved.state.stats]};photoSize=saved.photoSize;sourcePhoto=saved.sourcePhoto;}
+    else{state.name='SPELARNAMN';state.photo=null;photoSize=null;sourcePhoto=null;state.zoom=100;state.panX=state.panY=0;}photoRead++;syncForm();
+  });
   let aiControls=[];
   const startup=init();
   window.BB3D_AI_EDITOR={
     ready:startup,
+    isBusy:()=>sending||aiWorking||photoReadPending>0,
     getPhoto:()=>sourcePhoto||state.photo,
     getClub:()=>state.club,
     getProfile:()=>state.profileId,
