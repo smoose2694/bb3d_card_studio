@@ -4,8 +4,8 @@ import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 const context={window:{}};runInNewContext(await readFile(new URL('../fantasy-card.js',import.meta.url),'utf8'),context);
 const {render,palettes}=context.window.BB3D_FANTASY_CARD;
-test('Fantasy renderer supports both modes and four palettes in the print aspect ratio',()=>{
- for(const mode of ['trainer','monster'])for(const element of Object.keys(palettes)){const svg=render({mode,element,name:'Example',hp:120,damage:70});assert(svg.startsWith('<svg'));assert(svg.includes('width="1488" height="2079" viewBox="0 0 630 880"'));assert(svg.includes(mode==='trainer'?'TRÄNARE':'MONSTER'));assert(svg.includes(palettes[element].name));assert(!svg.includes('foreignObject'));assert(!svg.includes('FOOTBALL CARDS'));}
+test('Fantasy renderer supports both modes and 18 palettes in the print aspect ratio',()=>{
+ for(const mode of ['trainer','monster'])for(const element of Object.keys(palettes)){const svg=render({mode,element,name:'Example',hp:120,damage:70});assert(svg.startsWith('<svg'));assert(svg.includes('width="1488" height="2079" viewBox="0 0 630 880"'));assert(svg.includes(mode==='trainer'?'TRÄNARE':'MONSTER'));if(mode==='monster')assert(svg.includes(palettes[element].name));else assert(!svg.includes(' · '+palettes[element].name));assert(!svg.includes('foreignObject'));assert(!svg.includes('FOOTBALL CARDS'));}
 });
 test('Untrusted names, moves and image locations cannot become active SVG content',()=>{
  const svg=render({name:'<script>alert(1)</script>',attack:'<img src=x onerror=evil()>',ability:'A&B',note:'</text><script>evil()</script>',photo:'https://untrusted.example/image.png'});

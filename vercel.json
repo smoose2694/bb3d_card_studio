@@ -18,7 +18,7 @@
     },
     {
       "source": "/fantasy",
-      "destination": "/fantasy-preview.html"
+      "destination": "/index.html"
     }
   ],
   "crons": [

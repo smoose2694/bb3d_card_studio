@@ -2,7 +2,7 @@
 /**
  * Plugin Name: BB3D Card Studio
  * Description: Personliga sport- och Pokémonliknande kort med privat utskriftskö, Swish och kontrollerade AI-försök.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
  * Author: BB3D
@@ -138,7 +138,7 @@ add_action('template_redirect',function(){
     if(!defined('DONOTCACHEPAGE'))define('DONOTCACHEPAGE',true);
     $base=plugin_dir_url(__FILE__).'assets/';$nonce=wp_create_nonce('wp_rest');
     $config=['page'=>$page,'base'=>$base,'api'=>rest_url('bb3d-cards/v1/'),'nonce'=>$nonce,'csrf'=>csrf($actor),'studio'=>page_url(),'fantasy'=>page_url('fantasy'),'admin'=>page_url('admin'),'cardURL'=>add_query_arg('_wpnonce',$nonce,rest_url('bb3d-cards/v1/card')).'&id=','logout'=>wp_logout_url(page_url())];
-    $html=file_get_contents(__DIR__.'/assets/'.($page==='studio'?'index.html':($page==='fantasy'?'fantasy-preview.html':'admin.html')));
+    $html=file_get_contents(__DIR__.'/assets/'.($page==='admin'?'admin.html':'studio.html'));
     $html=str_replace(['__BB3D_ASSETS__','__BB3D_STUDIO__','__BB3D_FANTASY__','__BB3D_ADMIN__'],[esc_url($base),esc_url(page_url()),esc_url(page_url('fantasy')),esc_url(page_url('admin'))],$html);
     $boot='<script>window.BB3D_WP='.wp_json_encode($config,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT).';</script><script src="'.esc_url($base.'runtime.js').'"></script>';
     echo str_replace('<head>','<head>'.$boot,$html);exit;
@@ -147,8 +147,19 @@ add_action('admin_menu',function(){add_menu_page('BB3D Card Studio','BB3D kort',
 function settings_page() {
     demand(operator(),403,'Behörighet saknas.');
     if(isset($_POST['bb3d_public'])&&current_user_can('manage_options')) { check_admin_referer('bb3d_public');update_option('bb3d_cards_public',$_POST['bb3d_public']==='yes',false); }
+    $key_notice='';
+    if(isset($_POST['bb3d_save_ai_key'])&&current_user_can('manage_options')) {
+        check_admin_referer('bb3d_save_ai_key');
+        try { $key=trim(wp_unslash($_POST['bb3d_openai_key']??''));update_option('bb3d_cards_openai_key',seal_api_key($key),false);$key_notice='API-nyckeln är sparad krypterat. Gör ett test innan du öppnar AI för kunder.'; }
+        catch(Failure $e){$key_notice=$e->getMessage();}
+    }
     $private=true;$message='Privat bildlagring är tillgänglig.';try{storage()->privateDir();}catch(Failure $e){$private=false;$message=$e->getMessage();}
-    echo '<div class="wrap"><h1>BB3D Card Studio · testversion</h1><p>Kortstudio och utskriftskö på ditt befintliga webbhotell. Swish kontrolleras manuellt. Befintliga WooCommerce-beställningar ändras inte.</p><p><a class="button button-primary" href="'.esc_url(page_url()).'">Öppna kortstudion</a> <a class="button" href="'.esc_url(page_url('fantasy')).'">Öppna Pokémonkort</a> <a class="button" href="'.esc_url(page_url('admin')).'">Öppna produktionskön</a></p><h2>Kontroll före öppning</h2><ul><li>'.esc_html($message).'</li><li>AI-nyckel: '.((new AI(service()))->ready()?'ansluten':'saknas – ange BB3D_OPENAI_API_KEY server-side i wp-config.php').'</li><li>PHP-körtid: '.esc_html(ini_get('max_execution_time')).' sekunder. Ett riktigt AI-test på Loopia återstår.</li><li>Daglig rensning: '.(wp_next_scheduled('bb3d_cards_cleanup')?'schemalagd':'saknas').'. Kundbilder och kontaktuppgifter sparas i högst 30 dagar, AI-resultat i 24 timmar.</li></ul><p>Nuvarande läge: <strong>'.(get_option('bb3d_cards_public',false)?'Öppen för kunder':'Testläge – endast behöriga WordPress-användare').'</strong>.</p>';
+    echo '<div class="wrap"><h1>BB3D Card Studio · testversion 0.2.0</h1><p>Kortstudio och utskriftskö på ditt befintliga webbhotell. Swish kontrolleras manuellt. Befintliga WooCommerce-beställningar ändras inte.</p><p><a class="button button-primary" href="'.esc_url(page_url()).'">Öppna kortstudion</a> <a class="button" href="'.esc_url(page_url('fantasy')).'">Öppna Pokémonkort</a> <a class="button" href="'.esc_url(page_url('admin')).'">Öppna produktionskön</a></p><h2>Kontroll före öppning</h2><ul><li>'.esc_html($message).'</li><li>AI-nyckel: '.((new AI(service()))->ready()?'ansluten':'saknas – anslut den i fältet nedan').'</li><li>PHP-körtid: '.esc_html(ini_get('max_execution_time')).' sekunder. Ett riktigt AI-test på Loopia återstår.</li><li>Daglig rensning: '.(wp_next_scheduled('bb3d_cards_cleanup')?'schemalagd':'saknas').'. Kundbilder och kontaktuppgifter sparas i högst 30 dagar, AI-resultat i 24 timmar.</li></ul><p>Nuvarande läge: <strong>'.(get_option('bb3d_cards_public',false)?'Öppen för kunder':'Testläge – endast behöriga WordPress-användare').'</strong>.</p>';
     if(current_user_can('manage_options')) { echo '<form method="post">';wp_nonce_field('bb3d_public');echo '<button class="button" name="bb3d_public" value="'.(get_option('bb3d_cards_public',false)?'no':'yes').'" '.(!$private?'disabled':'').'>'.(get_option('bb3d_cards_public',false)?'Återgå till testläge':'Öppna för kunder efter godkänt test').'</button></form>'; }
+    if(current_user_can('manage_options')) {
+        echo '<h2>Anslut OpenAI</h2><p>'.esc_html($key_notice).'</p><p>Nyckeln sparas krypterat och visas inte igen. Att spara den startar ingen bildgenerering. AI aktiveras separat i produktionskön.</p><form method="post">';wp_nonce_field('bb3d_save_ai_key');
+        echo '<label for="bb3d_openai_key">OpenAI API-nyckel</label><br><input id="bb3d_openai_key" name="bb3d_openai_key" type="password" autocomplete="off" maxlength="512" required style="width:min(100%,560px);margin:10px 0" placeholder="Klistra in din API-nyckel"><p><button class="button button-primary" name="bb3d_save_ai_key" value="1">Spara API-nyckel</button></p></form>';
+        if(defined('BB3D_OPENAI_API_KEY'))echo '<p>En nyckel i serverns konfiguration har företräde framför fältet ovan.</p>';
+    }
     echo '<p>Testorder markeras i produktionskön innan Swish markeras som kontrollerad. Då räknas de bort från försäljningen. Ingen automatisk debitering eller omgenerering.</p></div>';
 }

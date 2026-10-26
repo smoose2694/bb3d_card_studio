@@ -12,7 +12,7 @@
   async function api(action,options={}){let response;try{response=await fetch('/api/ai?action='+action,options);}catch{const error=Error('Anslutningen avbröts. Kontrollera det senaste försöket innan du skapar en ny bild.');error.unknown=true;throw error;}let data;try{data=await response.json();}catch{const error=Error('Svaret kunde inte läsas. Kontrollera senaste försöket.');error.unknown=true;throw error;}if(!response.ok){const error=Error(data.error||'AI-funktionen kunde inte svara.');error.status=response.status;error.jobId=data.jobId;throw error;}return data;}
   const post=(action,data)=>api(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   function refresh(){
-    const waiting=pending?.status==='running';$('ai-generate').textContent=waiting?'Kontrollera senaste försöket':quota?.remaining===1?'Skapa en ny version':'Skapa AI-foto';
+    const waiting=pending?.status==='running';$('ai-generate').textContent=waiting?'Kontrollera senaste försöket':quota?.remaining===1?'✦ Skapa en ny AI-version':'✦ Skapa mitt AI-motiv';
     $('ai-generate').disabled=!supportsAI()||working||(!waiting&&(!context?.paid||!available||!claimed||!quota?.remaining||quota?.attemptsRemaining===0));
     $('ai-use').disabled=working||!resultURL;
     if(quota)$('ai-quota').textContent=quota.attemptsRemaining+' av '+(quota.maxAttempts||2)+' AI-försök kvar för detta 4-pack. Även tekniska fel kan förbruka ett försök.';
@@ -32,7 +32,7 @@
     if(key===contextKey&&context?.paid===next?.paid){if(context?.paid&&!working){try{const result=await api('quota&purchaseId='+encodeURIComponent(context.purchaseId)+'&slotId='+encodeURIComponent(context.slotId));if(key===contextKey){quota=result;available=result.available;refresh();}}catch(e){message(e.message);}}return;}
     context=next;contextKey=key;claimed=false;quota=null;pending=null;resultURL=null;for(const v of versions)URL.revokeObjectURL(v.url);versions.length=0;$('ai-result').hidden=true;$('ai-consent').checked=false;$('ai-quota').textContent='';
     try{const saved=JSON.parse(sessionStorage.getItem(KEY+contextKey)||'null');if(saved?.id)pending={id:saved.id,status:'running',motif:saved.motif};}catch{}
-    if(!context?.paid){message('Beställ och betala ett 4-pack, välj sedan en motivplats överst på sidan.');refresh();return;}
+    if(!context?.paid){message('Beställ och betala ett 4-pack, välj sedan en motivplats under kortinställningarna.');refresh();return;}
     const captured=contextKey;
     try{const result=await post('claim',scope());if(captured!==contextKey)return;quota=result;claimed=true;if(pending)await resume();else message('Två AI-försök ingår. Ladda upp ett foto och godkänn AI-bearbetningen.');}
     catch(e){if(captured===contextKey){if(e.status===410){pending=null;remember();}message(e.message);}}finally{refresh();}

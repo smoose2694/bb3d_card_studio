@@ -1,20 +1,36 @@
 <?php
 namespace BB3D\Cards;
 if (!defined('ABSPATH')) exit;
+function seal_api_key($key) {
+    demand(is_string($key)&&preg_match('/^sk-[A-Za-z0-9_-]{16,509}$/D',$key),400,'Ange en giltig OpenAI API-nyckel.');
+    demand(function_exists('openssl_encrypt'),503,'Webbhotellets krypteringsstöd saknas.');
+    $iv=random_bytes(12);$tag='';$cipher=openssl_encrypt($key,'aes-256-gcm',hash('sha256',wp_salt('auth'),true),OPENSSL_RAW_DATA,$iv,$tag,'BB3D Card Studio');
+    demand(is_string($cipher),503,'Nyckeln kunde inte sparas.');return base64_encode($iv.$tag.$cipher);
+}
+function unseal_api_key($encoded) {
+    if(!is_string($encoded)||!function_exists('openssl_decrypt'))return null;
+    $raw=base64_decode($encoded,true);if(!is_string($raw)||strlen($raw)<29)return null;
+    $key=openssl_decrypt(substr($raw,28),'aes-256-gcm',hash('sha256',wp_salt('auth'),true),OPENSSL_RAW_DATA,substr($raw,0,12),substr($raw,12,16),'BB3D Card Studio');
+    return is_string($key)?$key:null;
+}
+function openai_key() {
+    if(defined('BB3D_OPENAI_API_KEY')&&is_string(BB3D_OPENAI_API_KEY)&&strlen(trim(BB3D_OPENAI_API_KEY))>10)return trim(BB3D_OPENAI_API_KEY);
+    return unseal_api_key(get_option('bb3d_cards_openai_key',null));
+}
 class AI {
     private $service;
     private $edit;
     public $startedId=null;
     public function __construct($service,$edit=null) { $this->service=$service; $this->edit=$edit??[$this,'provider']; }
-    public function ready() { return defined('BB3D_OPENAI_API_KEY')&&is_string(BB3D_OPENAI_API_KEY)&&strlen(trim(BB3D_OPENAI_API_KEY))>10; }
+    public function ready() { return openai_key()!==null; }
     public function summary($s) { return ['enabled'=>$s['settings']['enabled'],'available'=>$s['settings']['enabled']&&$this->ready(),'providerReady'=>$this->ready(),'dailyLimit'=>$s['settings']['dailyLimit'],'used'=>$s['usage'][day()]??0,'active'=>(bool)$s['active'],'activeUntil'=>$s['active']?($s['active']['until']*1000):null,'maxImages'=>2,'maxAttempts'=>2,'lastError'=>$s['lastError'],'activeCodes'=>count($s['grants'])]; }
     public function spec($b) {
         $profile=$b['profileId']??'';
-        if($profile==='bb3d-fantasy') { demand(in_array($b['mode']??null,['trainer','monster'],true)&&in_array($b['element']??null,['eld','vatten','skog','blixt'],true),400,'Välj motivtyp och element.');return ['profileId'=>$profile,'mode'=>$b['mode'],'element'=>$b['element']]; }
-        demand(in_array($profile,['future-star-football','future-star-hockey'],true),400,'Välj korttyp.');
+        if($profile==='bb3d-fantasy') { demand(in_array($b['mode']??null,['trainer','monster'],true)&&(($b['mode']??null)==='trainer'||(is_string($b['element']??null)&&array_key_exists($b['element'],profiles()['elements']))),400,'Välj motivtyp och element.');return $b['mode']==='trainer'?['profileId'=>$profile,'mode'=>'trainer']:['profileId'=>$profile,'mode'=>$b['mode'],'element'=>$b['element']]; }
+        $sport=null;foreach(profiles()['profiles'] as $p)if($p['id']===$profile&&$p['id']!=='bb3d-fantasy')$sport=$p;demand($sport,400,'Välj korttyp.');
         $club=$b['club']??''; $catalogue=profiles();
         if($profile==='future-star-football'&&isset($catalogue['clubs'][$club])) return ['profileId'=>$profile,'club'=>$club];
-        demand($club===($profile==='future-star-hockey'?'Egen hockeyklubb':'Egen klubb'),400,'Välj klubb.');
+        demand($club===$sport['clubs'][0],400,'Välj klubb.');
         foreach(['primary','accent'] as $color) demand(is_string($b[$color]??null)&&preg_match('/^#[a-f0-9]{6}$/iD',$b[$color]),400,'Ogiltig klubbfärg.');
         return ['profileId'=>$profile,'club'=>$club,'primary'=>strtolower($b['primary']),'accent'=>strtolower($b['accent'])];
     }
@@ -71,10 +87,10 @@ class AI {
     }
     public function provider($spec,$photo,$actor) {
         $catalogue=profiles(); $images=[['image_url'=>$photo]];
-        if($spec['profileId']==='bb3d-fantasy') $prompt=$catalogue['prompts']['fantasy'][$spec['mode']][$spec['element']];
+        if($spec['profileId']==='bb3d-fantasy') $prompt=$spec['mode']==='trainer'?$catalogue['prompts']['fantasy']['trainer']:$catalogue['prompts']['fantasy']['monster'][$spec['element']];
         elseif(isset($catalogue['clubs'][$spec['club']])) { $club=$catalogue['clubs'][$spec['club']]; $prompt=$club['prompt'];$images[]=['image_url'=>$club['logo']]; }
         else $prompt=str_replace(['__PRIMARY__','__ACCENT__'],[$spec['primary'],$spec['accent']],$catalogue['prompts'][$spec['profileId']]);
-        $response=wp_remote_post('https://api.openai.com/v1/images/edits',['timeout'=>240,'redirection'=>0,'sslverify'=>true,'headers'=>['Authorization'=>'Bearer '.BB3D_OPENAI_API_KEY,'Content-Type'=>'application/json'],'body'=>wp_json_encode(['model'=>$catalogue['model'],'images'=>$images,'prompt'=>$prompt,'n'=>1,'quality'=>'medium','size'=>'1536x1024','background'=>'opaque','output_format'=>'png','safety_identifier'=>$actor]),'limit_response_size'=>18*1024*1024]);
+        $response=wp_remote_post('https://api.openai.com/v1/images/edits',['timeout'=>240,'redirection'=>0,'sslverify'=>true,'headers'=>['Authorization'=>'Bearer '.openai_key(),'Content-Type'=>'application/json'],'body'=>wp_json_encode(['model'=>$catalogue['model'],'images'=>$images,'prompt'=>$prompt,'n'=>1,'quality'=>'medium','size'=>'1536x1024','background'=>'opaque','output_format'=>'png','safety_identifier'=>$actor]),'limit_response_size'=>18*1024*1024]);
         demand(!is_wp_error($response),504,'AI-anropet kunde inte bekräftas. Kontakta BB3D innan du försöker igen.');
         $code=wp_remote_retrieve_response_code($response);
         if(in_array($code,[401,402,403],true)) throw new Failure($code,'AI-anslutningen behöver kontrolleras av BB3D.');

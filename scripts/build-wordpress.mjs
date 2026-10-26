@@ -1,21 +1,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import elements from '../lib/fantasy-elements.json' with {type:'json'};
 import {cardProfiles} from '../lib/card-profiles.js';
 import {cardPrompt,IMAGE_MODEL} from '../lib/ai-provider.js';
 const root='wordpress/bb3d-card-studio',out=root+'/assets';
 fs.mkdirSync(out,{recursive:true});
 const clubs=JSON.parse(fs.readFileSync('lib/ai-clubs.json','utf8'));
 for(const [name,club]of Object.entries(clubs))club.prompt=cardPrompt({profileId:'future-star-football',club:name});
-const prompts={fantasy:{trainer:{},monster:{}}};
-for(const mode of ['trainer','monster'])for(const element of ['eld','vatten','skog','blixt'])prompts.fantasy[mode][element]=cardPrompt({profileId:'bb3d-fantasy',mode,element});
-for(const profileId of ['future-star-football','future-star-hockey'])prompts[profileId]=cardPrompt({profileId,club:profileId==='future-star-hockey'?'Egen hockeyklubb':'Egen klubb',primary:'__PRIMARY__',accent:'__ACCENT__'});
-fs.writeFileSync(root+'/catalogue.json',JSON.stringify({profiles:cardProfiles,clubs,prompts,model:IMAGE_MODEL}));
-for(const f of ['index.html','styles.css','app.js','assets.js','fiskeviks-logo.js','card-profiles.js','print.js','fantasy-preview.html','fantasy-preview.css','fantasy-preview.js','fantasy-card.js','sample-art.js','purchase-client.js','ai-client.js','admin.html','admin.js','ai-admin.js']){
- let s=f==='card-profiles.js'?'window.BB3D_CARD_PROFILES='+JSON.stringify(cardProfiles)+';':fs.readFileSync(f,'utf8');
+const prompts={fantasy:{trainer:cardPrompt({profileId:'bb3d-fantasy',mode:'trainer'}),monster:{}}};
+for(const element of Object.keys(elements))prompts.fantasy.monster[element]=cardPrompt({profileId:'bb3d-fantasy',mode:'monster',element});
+for(const p of cardProfiles.filter(p=>p.id!=='bb3d-fantasy'))prompts[p.id]=cardPrompt({profileId:p.id,club:p.clubs[0],primary:'__PRIMARY__',accent:'__ACCENT__'});
+fs.writeFileSync(root+'/catalogue.json',JSON.stringify({profiles:cardProfiles,clubs,prompts,elements,model:IMAGE_MODEL}));
+for(const f of ['studio.html','studio.css','studio.js','card-back.js','fantasy-elements.js','index.html','styles.css','app.js','assets.js','fiskeviks-logo.js','card-profiles.js','print.js','fantasy-preview.html','fantasy-preview.css','fantasy-preview.js','fantasy-card.js','sample-art.js','purchase-client.js','ai-client.js','admin.html','admin.js','ai-admin.js']){
+ let s=f==='fantasy-elements.js'?'window.BB3D_ELEMENTS='+JSON.stringify(elements)+';':f==='card-profiles.js'?'window.BB3D_CARD_PROFILES='+JSON.stringify(cardProfiles)+';':fs.readFileSync(f,'utf8');
  if(f.endsWith('.html')){
   s=s.replace(/<script src="\/?(?:upload|install)\.js" defer><\/script>/g,'').replace(/<link rel="manifest"[^>]*>/g,'');
-  s=s.replace(/(src|href)="\/?([\w.-]+\.(?:js|css)|icons\/[^" ]+)"/g,'$1="__BB3D_ASSETS__$2"');
+  s=s.replace(/(src|href)="\/?([\w.-]+\.(?:js|css)|icons\/[^" ]+)"/g,'$1="__BB3D_ASSETS__$2?ver=0.2.0"');
   s=s.replaceAll('https://bb3d-card-studio.vercel.app/bestallningar','__BB3D_ADMIN__').replaceAll('bb3d-card-studio.vercel.app/bestallningar','BB3D:s produktionskö');
   s=s.replaceAll('href="/fantasy"','href="__BB3D_FANTASY__"').replaceAll('href="/bestallningar"','href="__BB3D_ADMIN__"').replaceAll('href="/"','href="__BB3D_STUDIO__"').replaceAll('href="./"','href="__BB3D_STUDIO__"');
   s=s.replace('Använd administratörslösenordet du valde i Vercel.','Logga in med ditt behöriga WordPress-konto.').replace('Aktivitet uppdateras ungefär varje minut när kundens sida är synlig.','Aktivitet visas när kunden väljer köp, motivplats eller uppdaterar sitt köp.').replace('AI-foton är aktiverade.','AI-foton är aktiverade.');

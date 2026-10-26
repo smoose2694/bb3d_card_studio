@@ -55,7 +55,7 @@ $fourth=$gen;$fourth['id']=wp_generate_uuid4();fails(fn()=>$ai->generate($fourth
 // Verify the real provider adapter without a network call or a live key.
 $providerCalls=0;$captured=null;$filter=function($pre,$args,$url)use(&$providerCalls,&$captured,$result){$providerCalls++;$captured=json_decode($args['body'],true);check($url==='https://api.openai.com/v1/images/edits','Fixed provider destination');return ['headers'=>[],'body'=>wp_json_encode(['data'=>[['b64_json'=>base64_encode($result)]]]),'response'=>['code'=>200,'message'=>'OK'],'cookies'=>[]];};
 add_filter('pre_http_request',$filter,10,3);check($ai->provider(['profileId'=>'bb3d-fantasy','mode'=>'trainer','element'=>'skog'],$photo,$alice)===$result,'Provider response decoded');remove_filter('pre_http_request',$filter,10);
-check($providerCalls===1&&$captured['n']===1&&$captured['quality']==='medium'&&$captured['size']==='1536x1024','Single fixed-quality provider call');check(strpos($captured['prompt'],'woodland adventure jacket')!==false,'Approved clothing/environment prompt retained');check(!isset($captured['code']),'No user-defined prompt override');
+check($providerCalls===1&&$captured['n']===1&&$captured['quality']==='medium'&&$captured['size']==='1536x1024','Single fixed-quality provider call');check(strpos($captured['prompt'],'practical adventure jacket')!==false,'Approved clothing/environment prompt retained');check(!isset($captured['code']),'No user-defined prompt override');
 // Finish the second pack and exercise the complete operator production/payment flow.
 $path2='incoming/'.substr($alice,0,24).'/'.wp_generate_uuid4().'.png';$store->putImage($path2,$print,$alice,time()+86400);
 $sport=['profileId'=>'future-star-football','approved'=>true,'player'=>'SPELARE TEST','club'=>'FBK Karlstad','clubName'=>'FBK Karlstad','position'=>'BACK','stats'=>[90,90,90,90,90,90],'total'=>90];
@@ -73,4 +73,14 @@ $anon=$store->read('statistics/'.$id)['data'];check(strpos(wp_json_encode($anon)
 $latest=$store->read('orders/'.$id);$latest['data']['expiresAt']=iso(time()-1);$store->write('orders/'.$id,$latest['data'],$latest['etag']);fails(fn()=>$s->own($id,$alice),410);$s->cleanup();check(!$store->read('orders/'.$id)&&$store->read('statistics/'.$id),'Expired customers removed, anonymous sales retained');
 $files=$store->rows('files/');$f=$files[0];$f['data']['expires']=time()-1;$store->write($f['key'],$f['data'],$f['etag']);$store->expireFiles();fails(fn()=>$store->image(substr($f['key'],6)),410);
 check(strpos($store->privateDir(),realpath(ABSPATH).'/')!==0,'Files stay outside webroot');
+foreach(BB3D\Cards\profiles()['elements'] as $element=>$palette) {
+    $spec=$ai->spec(['profileId'=>'bb3d-fantasy','mode'=>'monster','element'=>$element]);check($spec['element']===$element,'Monster type validated');
+    $value=BB3D\Cards\details(array_merge($d,['element'=>$element,'mode'=>'monster','customerName'=>'TEST','contact'=>'']));check($value['element']===$element,'Monster type order validated');
+}
+check(!isset($ai->spec(['profileId'=>'bb3d-fantasy','mode'=>'trainer'])['element']),'Trainer has no element');
+foreach(['future-star-floorball'=>'Egen innebandyklubb','future-star-handball'=>'Egen handbollsklubb'] as $profile=>$club) {
+    $spec=$ai->spec(['profileId'=>$profile,'club'=>$club,'primary'=>'#15181f','accent'=>'#ffffff']);check($spec['profileId']===$profile,'New sport AI recipe');
+    $value=BB3D\Cards\details(['profileId'=>$profile,'approved'=>true,'player'=>'TEST','customerName'=>'TEST','contact'=>'','club'=>$club,'clubName'=>'MIN KLUBB','position'=>$profile==='future-star-handball'?'MITTNIO':'FORWARD','stats'=>[90,90,90,90,90,90],'total'=>90]);check($value['profileId']===$profile,'New sport order validated');
+}
+$key='sk-'.str_repeat('SyntheticOnly',4);$sealed=BB3D\Cards\seal_api_key($key);check(strpos($sealed,$key)===false,'Key is not stored in plain text');check(BB3D\Cards\unseal_api_key($sealed)===$key,'Key decrypts server-side');check(BB3D\Cards\unseal_api_key(substr($sealed,0,-8))===null,'Tampered key fails closed');
 echo "WordPress ".get_bloginfo('version').": $checks integration assertions passed (isolated SQLite-backed wpdb; Loopia MariaDB test remains).\n";

@@ -41,9 +41,9 @@ function details($raw) {
     $out=['profileId'=>$profile['id'],'approved'=>true,'player'=>text($raw['player']??null,$profile['id']==='bb3d-fantasy'?28:60,true),'customerName'=>text($raw['customerName']??null,100,true),'contact'=>text($raw['contact']??'',180),'quantity'=>4,'packs'=>1,'amountSEK'=>100];
     demand(!in_array(mb_strtoupper($out['player']),['SPELARNAMN','DITT NAMN'],true),400,'Ange namnet på kortet.');
     if($profile['id']==='bb3d-fantasy') {
-        demand(in_array($raw['mode']??null,['trainer','monster'],true)&&in_array($raw['element']??null,['eld','vatten','skog','blixt'],true),400,'Välj motivtyp och element.');
+        demand(in_array($raw['mode']??null,['trainer','monster'],true)&&(($raw['mode']??null)==='trainer'||(is_string($raw['element']??null)&&array_key_exists($raw['element'],profiles()['elements']))),400,'Välj motivtyp och element.');
         foreach(['hp'=>[10,300],'damage'=>[0,200]] as $k=>$range) demand(is_int($raw[$k]??null)&&$raw[$k]>=$range[0]&&$raw[$k]<=$range[1],400,'Kontrollera kortets värden.');
-        $out+=['club'=>'BB3D Fantasy','clubName'=>'BB3D Fantasy','position'=>$raw['mode']==='trainer'?'TRÄNARE':'MONSTER','mode'=>$raw['mode'],'element'=>$raw['element'],'hp'=>$raw['hp'],'damage'=>$raw['damage'],'attack'=>text($raw['attack']??null,26,true),'ability'=>text($raw['ability']??null,26,true),'note'=>text($raw['note']??'',100)];
+        $out+=['club'=>'BB3D Fantasy','clubName'=>'BB3D Fantasy','position'=>$raw['mode']==='trainer'?'TRÄNARE':'MONSTER','mode'=>$raw['mode'],'element'=>$raw['mode']==='trainer'?null:$raw['element'],'hp'=>$raw['hp'],'damage'=>$raw['damage'],'attack'=>text($raw['attack']??null,26,true),'ability'=>text($raw['ability']??null,26,true),'note'=>text($raw['note']??'',100)];
     } else {
         demand(in_array($raw['club']??null,$profile['clubs'],true)&&in_array($raw['position']??null,$profile['positions'],true),400,'Kontrollera klubb och position.');
         demand(is_array($raw['stats']??null)&&count($raw['stats'])===6,400,'Ange sex spelarvärden.');
