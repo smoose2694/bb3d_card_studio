@@ -16,7 +16,7 @@
   $('purchase-swish').href=payment.url;$('purchase-swish').hidden=purchase.paid;
   $('purchase-progress').textContent=purchase.paid?'Swish kontrollerad · '+purchase.slots.filter(s=>s.ready).length+' av '+purchase.slots.length+' motiv godkända.':'Väntar på att BB3D kontrollerar din betalning.';
   $('purchase-slots').replaceChildren();for(const s of purchase.slots){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent='4-pack '+(s.index+1)+(s.ready?' · '+s.player+' · Godkänt':' · Skapa motiv');b.disabled=!purchase.paid||s.ready||purchase.status!=='new';b.setAttribute('aria-pressed',String(slot?.id===s.id));b.onclick=()=>select(s);$('purchase-slots').append(b);}
-  $('purchase-selected').textContent=slot?'Du skapar motiv till 4-pack '+(slot.index+1)+'. Två AI-försök ingår för denna plats.':purchase.complete?'Alla motiv är godkända. BB3D kan nu tillverka dina kort.':'Välj en motivplats när betalningen är kontrollerad.';
+  $('purchase-selected').textContent=slot?'Du skapar motiv till 4-pack '+(slot.index+1)+'. Två AI-försök ingår för denna plats.':purchase.complete?'Alla motiv är godkända. Tryckbilderna har skickats automatiskt till BB3D:s beställningslista. Dina kort är redo för tillverkning.':'Välj en motivplats när betalningen är kontrollerad.';
   const link=$('switch-editor');link.href=location.pathname==='/fantasy'?'/':'/fantasy';link.textContent=location.pathname==='/fantasy'?'Byt till fotboll eller hockey för denna motivplats':'Byt till fantasy: tränare eller monster';
  }
  function select(s){if(window.BB3D_AI_EDITOR?.isBusy?.()){msg('Vänta tills pågående arbete är klart.');return;}slot=s;remember();render();notify();}

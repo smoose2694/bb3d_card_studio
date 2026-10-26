@@ -6,3 +6,5 @@
 .ai-panel{padding:16px;margin:18px 0;border:1px solid #b7c9ac;border-radius:7px;background:#edf2e7}.ai-panel h3{font-size:16px;margin:0 0 8px}.ai-panel button{margin-top:8px}.ai-panel img{display:block;max-width:100%;max-height:320px;margin:12px auto;border-radius:6px}.ai-panel[hidden],#ai-result[hidden]{display:none}
 
 .purchase-panel{padding:24px;border:1px solid #b9cbbb;border-radius:16px;background:#f0f5ed;margin-bottom:36px}.purchase-panel h2{margin-top:0}.purchase-panel button,.purchase-panel a{margin:6px 6px 6px 0}.purchase-panel [aria-pressed="true"]{outline:3px solid #335a45}.purchase-panel input{width:100%;box-sizing:border-box}
+
+[hidden]{display:none!important}

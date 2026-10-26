@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node server.cjs",
     "build": "node scripts/audit.mjs && npm run check && npm test && node scripts/build.mjs",
-    "check": "node --check app.js && node --check lib/core.js && node --check lib/handler.js && node --check admin.js",
+    "check": "node --check app.js && node --check lib/core.js && node --check lib/handler.js && node --check admin.js && node --check purchase-client.js && node --check ai-client.js && node --check ai-admin.js && node --check fantasy-preview.js && node --check print.js && node --check lib/purchases.js && node --check lib/purchase-handler.js && node --check lib/ai-handler.js && node --check lib/ai-provider.js",
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {

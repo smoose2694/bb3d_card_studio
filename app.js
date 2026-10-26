@@ -127,7 +127,7 @@
     $('club-caption').textContent=`${state.clubName.toLocaleUpperCase('sv-SE')} · ${state.primary===clubs[state.club].primary && state.accent===clubs[state.club].accent?clubs[state.club].name:'EGNA FÄRGER'}`;
     $('photo-controls').hidden=!state.photo;
     statLabels().forEach((label,i)=>document.querySelector('label[for="stat-'+i+'"]').textContent=label);
-    $('sport-hint').textContent=state.profileId==='future-star-hockey'?'Använd din hockeyklubbs namn, färger och egen logotyp. AI-foto för hockey kommer senare.':'';
+    $('sport-hint').textContent=state.profileId==='future-star-hockey'?'Använd din hockeyklubbs namn, färger och egen logotyp. AI-fotot använder dina valda klubbfärger.':'';
     document.dispatchEvent(new Event('bb3d:profile-change'));
   }
   function syncForm() {
@@ -285,6 +285,7 @@
     getPhoto:()=>sourcePhoto||state.photo,
     getClub:()=>state.club,
     getProfile:()=>state.profileId,
+    getMotif:()=>({profileId:state.profileId,club:state.club,primary:state.primary,accent:state.accent}),
     getConnection:()=>connection,
     busy:value=>{if(value){if(sending||photoReadPending)throw Error('Vänta tills bilden eller beställningen är färdig.');aiWorking=true;aiControls=[...document.querySelectorAll('#editor-form input,#editor-form select,#editor-form button')].map(node=>({node,disabled:node.disabled}));for(const item of aiControls)item.node.disabled=true;}else{for(const item of aiControls)item.node.disabled=item.disabled;aiWorking=false;aiControls=[];}},
     apply:async src=>{if(sending||aiWorking)throw Error('Vänta tills det pågående arbetet är färdigt.');const image=await loadImage(src);photoRead++;state.photo=src;photoSize={width:image.width,height:image.height};state.zoom=100;state.panX=0;state.panY=0;syncForm();status('AI-bilden används på kortet. Granska och godkänn innan du beställer.');}

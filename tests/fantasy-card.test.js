@@ -12,7 +12,7 @@ test('Untrusted names, moves and image locations cannot become active SVG conten
  assert(!svg.includes('<script>'));assert(!svg.includes('<img'));assert(!svg.includes('untrusted.example'));assert(svg.includes('&lt;script&gt;'));assert(svg.includes('A&amp;B'));
  const image=render({photo:'data:image/png;base64,AAAA',zoom:500,width:600,height:450});assert(image.includes('clip-path="url(#fantasy-art)"'));assert(image.includes('href="data:image/png;base64,AAAA"'));
 });
-test('Fantasy values and long text stay bounded without introducing an ordering or AI endpoint',async()=>{
+test('Fantasy values stay bounded and the page uses shared paid purchase and AI controls',async()=>{
  const svg=render({hp:9999,damage:-1,name:'W'.repeat(100),note:'A '.repeat(100)});assert(svg.includes('>300</text>'));assert(svg.includes('>0</text>'));assert(!svg.includes('W'.repeat(29)));assert(svg.includes('lengthAdjust="spacingAndGlyphs"'));
- const page=await readFile(new URL('../fantasy-preview.html',import.meta.url),'utf8'),client=await readFile(new URL('../fantasy-preview.js',import.meta.url),'utf8');assert(!client.includes('fetch('));assert(!page.includes('/api/'));assert(page.includes('AI-omvandling och beställning kommer i nästa steg'));
+ const page=await readFile(new URL('../fantasy-preview.html',import.meta.url),'utf8'),client=await readFile(new URL('../fantasy-preview.js',import.meta.url),'utf8');assert(!client.includes('fetch('));assert(!page.includes('/api/'));assert(page.includes('/purchase-client.js'));assert(page.includes('/ai-client.js'));assert(client.includes('BB3D_PURCHASE.submit'));assert(client.includes('BB3D_PRINT.create'));
 });
