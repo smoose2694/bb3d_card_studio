@@ -8,6 +8,14 @@ import * as A from '../lib/ai-control.js';
 import {createPurchaseHandler} from '../lib/purchase-handler.js';
 const actor='synthetic-buyer',raw={packs:3,customerName:'SYNTHETIC TEST',contact:''};
 const details={profileId:'future-star-football',approved:true,player:'TEST ÅÄÖ',club:'FBK Karlstad',clubName:'FBK Karlstad',position:'BACK',stats:[90,90,90,90,90,90],total:90};
+test('Reusing a paid AI allowance performs no writes and still rejects another actor',async()=>{
+ const s=new Store(),grant={code:'AAAABBBBCCCCDDDD',expiresAt:Date.now()+60000};
+ const expected=await A.ensurePaidGrant(s,grant,'owner');
+ let writes=0;s.write=async()=>{writes++;throw Error('Unexpected write');};
+ assert.deepEqual(await A.ensurePaidGrant(s,grant,'owner'),expected);
+ await assert.rejects(()=>A.ensurePaidGrant(s,grant,'other'),e=>e.status===403);
+ assert.equal(writes,0);
+});
 async function setup(packs=3){const s=new Store(),p=await P.createPurchase(s,randomUUID(),actor,{...raw,packs});return{s,p};}
 test('A multi-pack purchase saves once, prices on server and creates one motif per pack',async()=>{
  const {s,p}=await setup();assert.equal(p.payment.amountSEK,300);assert.equal(p.slots.length,3);assert.equal(new Set(p.slots.map(x=>x.id)).size,3);
