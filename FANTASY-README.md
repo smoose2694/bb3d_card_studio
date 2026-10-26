@@ -1,3 +1,8 @@
+## Godkänd illustrationsstil
+De förenklade vektorfigurerna är ersatta av nio genererade exempelillustrationer: fyra stående monstermotiv, fyra breda varianter för den klassiska bildrutan och en stående tränare. Originalen följer det godkända Pokémonliknande stilförslaget med detaljrika miljöer, uttrycksfulla figurer och genomarbetad animeillustration. `sample-art.js` hämtar de offentliga WebP-filerna och bäddar in dem som bilddata i SVG:n. Kundens foto har alltid företräde; exempelbilderna räknas aldrig som ett uppladdat kundfoto och kan inte godkännas för utskrift.
+
+Serverns motivinstruktioner använder samma kvalitetsbeskrivning för riktiga AI-bilder. Fotboll och hockey behåller fotorealistiska porträtt. Modell, pris och försökstak är oförändrade.
+
 ## Ny kortdesign
 Monster har två stilar: klassisk gul ram med separat illustration och Full art med metallisk ram. Element, HP, energiikoner, förmåga och attack delar samma redigerbara data. Tränare har egen Full art-layout med silverrubrik, namn, stor illustration, tränarinsats och förmåga; HP och attackstyrka visas inte. Kortens BB3D-rubrik är borttagen. Kundinformationen om gloss och förtryckta baksidor är borttagen. Båda layouttyperna använder befintlig PNG-export och 63 × 88 mm-validering.
 

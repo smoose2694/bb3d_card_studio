@@ -26,3 +26,16 @@ test('Monster layouts and trainer full art keep separate visual information in t
  assert(full.includes('>ex</text>'));assert(!classic.includes('>ex</text>'));
  assert(trainer.includes('>TRÄNARE</text>'));assert(trainer.includes('>SUPPORTER</text>'));assert(!trainer.includes('>HP</text>'));assert(!trainer.includes('>180</text>'));assert(!trainer.includes('>90</text>'));
 });
+
+test('Professional examples select the right composition, while a customer PNG takes precedence',()=>{
+ const sample=photo=>({photo,width:1086,height:1448});
+ context.window.BB3D_CARD_ART={eld:sample('data:image/webp;base64,QUFBQQ=='),'eld-classic':sample('data:image/webp;base64,QkJCQg=='),trainer:sample('data:image/webp;base64,Q0NDQw==')};
+ assert(render({mode:'monster',style:'classic',element:'eld'}).includes('href="data:image/webp;base64,QkJCQg=="'));
+ assert(render({mode:'monster',style:'fullart',element:'eld'}).includes('href="data:image/webp;base64,QUFBQQ=="'));
+ assert(render({mode:'trainer'}).includes('href="data:image/webp;base64,Q0NDQw=="'));
+ const own=render({mode:'monster',element:'eld',photo:'data:image/png;base64,AAAA',width:400,height:600});
+ assert(own.includes('href="data:image/png;base64,AAAA"'));assert(!own.includes('href="data:image/webp'));
+ context.window.BB3D_CARD_ART.eld=sample('https://untrusted.example/picture.webp');
+ assert(!render({mode:'monster',style:'fullart',element:'eld'}).includes('untrusted.example'));
+ delete context.window.BB3D_CARD_ART;
+});
