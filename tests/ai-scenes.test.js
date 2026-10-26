@@ -49,14 +49,14 @@ test('Custom sports send selected colors with different sport-specific clothing 
  }
 });
 
-test('All fantasy elements reach the provider with matching trainer outfits and environments',async()=>{
+test('Trainers use one adventure recipe independent of legacy element selections',async()=>{
  const settings={eld:['red and charcoal','volcanic rock trail'],vatten:['blue and teal','rocky lakeshore'],skog:['green and earth-tone','lush forest trail'],blixt:['yellow and dark blue','rocky highland overlook']};
  for(const [element,[colors,scene]]of Object.entries(settings)){
   const sent=await payload({profileId:'bb3d-fantasy',mode:'trainer',element});
   assert.equal(sent.images.length,1);
-  assert(sent.prompt.includes(colors));
+  assert(sent.prompt.includes('practical adventure jacket'));
   assert.match(sent.prompt,/adventure jacket/);
-  assert(sent.prompt.includes(scene));
+  assert(sent.prompt.includes('sunny adventure town'));
   assert.match(sent.prompt,/same recognizable face, age, skin tone, hair and expression/);
   assert.match(sent.prompt,/age-appropriate, fully covering/);
   assert.match(sent.prompt,/Replace the original clothing and background completely/);

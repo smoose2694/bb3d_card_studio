@@ -1,7 +1,8 @@
 'use strict';
 (() => {
   const A = window.BB3D_ASSETS;
-  const $ = id => document.getElementById(id);
+  const root=document.getElementById('sports-editor')||document;
+  const $ = id => root.querySelector('#'+id);
   const NS = 'http://www.w3.org/2000/svg';
   const XLINK = 'http://www.w3.org/1999/xlink';
   const profiles=window.BB3D_CARD_PROFILES;
@@ -15,7 +16,9 @@
     'Råtorps IK': {logo:'Ratorps_IK',primary:'#68cbea',accent:'#ffffff',name:'LJUSBLÅ / VIT'},
     'Hertzöga BK': {logo:'Hertzoga_BK',primary:'#ffe62b',accent:'#005b2b',name:'GUL / GRÖN'},
     'Egen hockeyklubb': {logo:null,primary:'#1c6192',accent:'#ffffff',name:'EGNA HOCKEYFÄRGER'},
-    'Egen klubb': {logo:null,primary:'#c80b2c',accent:'#ffffff',name:'EGNA FÄRGER'}
+    'Egen innebandyklubb': {logo:null,primary:'#15181f',accent:'#ffffff',name:'EGNA KLUBBFÄRGER'},
+    'Egen handbollsklubb': {logo:null,primary:'#15181f',accent:'#ffffff',name:'EGNA KLUBBFÄRGER'},
+    'Egen klubb': {logo:null,primary:'#15181f',accent:'#ffffff',name:'EGNA FÄRGER'}
   };
   // Club-specific print palettes follow the supplied front/back references.
   const referencePalettes = {
@@ -23,9 +26,8 @@
     'Råtorps IK': {background:['#93dff1','#68cbea','#49b8df'],ink:'#004a70',name:'#004a70',panel:'#ffffff',badge:'#d6f4ff',position:'#e2f7ff',circle:'#d6f4ff',photo:['#56bfdc','#3da4cb']},
     'Hertzöga BK': {background:['#e1e95f','#ffeb28','#e2cf2a'],ink:'#005b2b',name:'#005b2b',panel:'#ffffff',badge:'#f8f1a0',position:'#fff9b0',circle:'#f8f1a0',photo:['#e1d934','#d3ce30']}
   };
-  let state = {profileId:'future-star-football',name:'SPELARNAMN',club:'FBK Karlstad',clubName:'FBK Karlstad',position:'ANFALLARE',total:87,
-    stats:[88,84,81,91,67,99],primary:'#c80b2c',accent:'#ffffff',photo:null,logo:null,zoom:100,panX:0,panY:0};
-  let side = 'front';
+  let state = {profileId:'future-star-football',name:'SPELARNAMN',club:'Egen klubb',clubName:'MIN KLUBB',position:'ANFALLARE',total:87,
+    stats:[88,84,81,91,67,99],primary:'#15181f',accent:'#ffffff',photo:null,logo:null,zoom:100,panX:0,panY:0};
   let photoSize = null, sourcePhoto = null;
   let ready = false;
   let exporting = false;
@@ -122,11 +124,11 @@
   function render() {
     if(!ready) return;
     if(!sending&&document.getElementById('approve')) $('approve').checked=false;
-    $('card').replaceChildren(buildSVG(side));
+    $('card').replaceChildren(buildSVG('front'));
     $('sum').textContent=`Poängsumma: ${state.stats.reduce((a,b)=>a+b,0)} · Medelvärde: ${(state.stats.reduce((a,b)=>a+b,0)/6).toFixed(1)}. Totalrating ändras bara av dig.`;
     $('club-caption').textContent=`${state.clubName.toLocaleUpperCase('sv-SE')} · ${state.primary===clubs[state.club].primary && state.accent===clubs[state.club].accent?clubs[state.club].name:'EGNA FÄRGER'}`;
     $('photo-controls').hidden=!state.photo;
-    statLabels().forEach((label,i)=>document.querySelector('label[for="stat-'+i+'"]').textContent=label);
+    statLabels().forEach((label,i)=>root.querySelector('label[for="stat-'+i+'"]').textContent=label);
     $('sport-hint').textContent=state.profileId==='future-star-hockey'?'Använd din hockeyklubbs namn, färger och egen logotyp. AI-fotot använder dina valda klubbfärger.':'';
     document.dispatchEvent(new Event('bb3d:profile-change'));
   }
@@ -206,9 +208,7 @@
     } catch(e) {status(e.message,true);} finally {photoReadPending=Math.max(0,photoReadPending-1);$(kind).value='';}
   });
   $('clear-photo').addEventListener('click',()=>{photoRead++;state.photo=null;sourcePhoto=null;photoSize=null;$('photo').value='';render();status('Fotot är borttaget.');});
-  for(const which of ['front','back']) $(`show-${which}`).addEventListener('click',()=>{
-    side=which;for(const s of ['front','back'])$(`show-${s}`).setAttribute('aria-pressed',String(s===side));render();
-  });
+
   function crc32(bytes) {
     let c=0xffffffff;
     for(const b of bytes){c^=b;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}
@@ -252,9 +252,9 @@
   async function submitOrder(event){event.preventDefault();if(sending)return;try{if(aiWorking)throw Error('Vänta tills AI-fotot är färdigt.');
     if(!connection?.orders)throw Error('Beställningsmottagningen är inte ansluten.');if(!state.photo)throw Error('Ladda upp ett spelarfoto först.');if(photoReadPending)throw Error('Vänta tills bilden har lästs in.');if(!state.name.trim()||state.name.trim().toUpperCase()==='SPELARNAMN')throw Error('Ange spelarens namn på kortet.');if(!$('approve').checked)throw Error('Granska kortet och godkänn förhandsvisningen först.');if(!$('editor-form').reportValidity())return;
     const details={profileId:state.profileId,approved:true,player:state.name.trim(),club:state.club,clubName:state.clubName,position:state.position,stats:[...state.stats],total:state.total};
-    if(!window.BB3D_PURCHASE?.current()?.paid)throw Error('Välj ett betalt 4-pack överst på sidan först.');
+    if(!window.BB3D_PURCHASE?.current()?.paid)throw Error('Välj ett betalt 4-pack under kortinställningarna först.');
     sending=true;const controls=[...document.querySelectorAll('input,select,button')],previous=controls.map(n=>n.disabled);controls.forEach(n=>n.disabled=true);$('submit-order').textContent='Sparar motivet…';
-    try{const png=await exportPNG('front');if(!png||png.size>12*1024*1024)throw Error('Kortfilen är för stor.');await window.BB3D_PURCHASE.submit({png,details,editor:{primary:state.primary,accent:state.accent}});$('order-status').textContent='Motivet är sparat för utskrift. Välj nästa 4-pack överst på sidan.';status('Motivet är godkänt.');}
+    try{const png=await exportPNG('front');if(!png||png.size>12*1024*1024)throw Error('Kortfilen är för stor.');await window.BB3D_PURCHASE.submit({png,details,editor:{primary:state.primary,accent:state.accent}});$('order-status').textContent='Motivet är sparat för utskrift. Välj nästa 4-pack under kortinställningarna.';status('Motivet är godkänt.');}
     finally{controls.forEach((n,i)=>n.disabled=previous[i]);$('submit-order').textContent='Godkänn detta 4-pack för utskrift';$('approve').checked=false;sending=false;}
   }catch(e){$('order-status').textContent=e.message;status(e.message,true);sending=false;}}
   $('quantity').addEventListener('input',()=>{const packs=Number($('quantity').value);$('order-total').textContent=Number.isInteger(packs)&&packs>=1&&packs<=25?packs+' × 4-pack · '+packs*4+' kort · totalt '+packs*100+' kr':'Välj 1–25 stycken 4-pack.';});
@@ -279,7 +279,7 @@
   });
   let aiControls=[];
   const startup=init();
-  window.BB3D_AI_EDITOR={
+  const sportsEditor={
     ready:startup,
     isBusy:()=>sending||aiWorking||photoReadPending>0,
     getPhoto:()=>sourcePhoto||state.photo,
@@ -290,4 +290,5 @@
     busy:value=>{if(value){if(sending||photoReadPending)throw Error('Vänta tills bilden eller beställningen är färdig.');aiWorking=true;aiControls=[...document.querySelectorAll('#editor-form input,#editor-form select,#editor-form button')].map(node=>({node,disabled:node.disabled}));for(const item of aiControls)item.node.disabled=true;}else{for(const item of aiControls)item.node.disabled=item.disabled;aiWorking=false;aiControls=[];}},
     apply:async src=>{if(sending||aiWorking)throw Error('Vänta tills det pågående arbetet är färdigt.');const image=await loadImage(src);photoRead++;state.photo=src;photoSize={width:image.width,height:image.height};state.zoom=100;state.panX=0;state.panY=0;syncForm();status('AI-bilden används på kortet. Granska och godkänn innan du beställer.');}
   };
+  window.BB3D_EDITORS??={};window.BB3D_EDITORS.sports=sportsEditor;if(root===document)window.BB3D_AI_EDITOR=sportsEditor;
 })();

@@ -25,7 +25,8 @@ const start=(s,grant,id=randomUUID(),now=NOW)=>A.beginImage(s,{id,code:grant.cod
 test('AI is off by default and requires provider readiness and operator code',async()=>{
  const s=new Store();assert.equal(A.controlSummary(await A.readControl(s,NOW),false,NOW).available,false);
  await assert.rejects(()=>A.configureAI(s,{enabled:true,dailyLimit:20},false,NOW),/OPENAI_API_KEY/);
- await assert.rejects(()=>A.configureAI(s,{enabled:true,dailyLimit:101},true,NOW));
+ await assert.rejects(()=>A.configureAI(s,{enabled:true,dailyLimit:5001},true,NOW));
+ await A.configureAI(s,{enabled:true,dailyLimit:5000},true,NOW);assert.equal((await A.readControl(s,NOW)).settings.dailyLimit,5000);
  await A.configureAI(s,{enabled:true,dailyLimit:20},true,NOW);await assert.rejects(()=>A.claimCode(s,'0000-0000-0000-0000',actor,NOW),e=>e.status===403);
 });
 test('Codes bind to one signed customer identity and expire',async()=>{

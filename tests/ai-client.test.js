@@ -11,7 +11,7 @@ class Element{
  replaceChildren(){this.children=[];}
  append(node){this.children.push(node);}
 }
-async function client({available=true,saved=null,networkFailure=false}={}){
+async function client({available=true,saved=null,networkFailure=false,paid=true,preview=false}={}){
  const nodes=new Map(),storage=new Map(),locks=[],requests=[],jobs=new Map(),urls=[],listeners={};let profileId="future-star-football";
  if(saved)storage.set(KEY,JSON.stringify({id:saved}));
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
@@ -34,7 +34,7 @@ async function client({available=true,saved=null,networkFailure=false}={}){
  };
  const editor={ready:Promise.resolve(),getConnection:()=>({orders:true}),getPhoto:()=>'data:image/png;base64,synthetic',getClub:()=>'FBK Karlstad',getProfile:()=>profileId,getMotif:()=>({profileId,club:profileId==='future-star-hockey'?'Egen hockeyklubb':'FBK Karlstad',primary:'#1c6192',accent:'#ffffff'}),busy:value=>locks.push(value)};
  class Image{constructor(){this.width=100;this.height=100;}set src(value){queueMicrotask(()=>this.onload());}}
- await runInNewContext(source,{window:{BB3D_AI_EDITOR:editor,BB3D_PURCHASE:{ready:Promise.resolve(),current:()=>({purchaseId:'purchase-test',slotId:'slot-test',paid:true})}},document:{getElementById:node,addEventListener:(name,fn)=>{listeners[name]=fn;},createElement:tag=>tag==='canvas'?{getContext:()=>({drawImage(){}}),toDataURL:()=>'data:image/png;base64,synthetic'}:new Element()},fetch,Image,crypto:{randomUUID},URL:{createObjectURL:()=>{const u='blob:synthetic-'+urls.length;urls.push(u);return u;},revokeObjectURL(){}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}});
+ await runInNewContext(source,{window:{BB3D_AI_EDITOR:editor,BB3D_PURCHASE:{ready:Promise.resolve(),current:()=>({purchaseId:'purchase-test',slotId:'slot-test',paid,preview})}},document:{getElementById:node,addEventListener:(name,fn)=>{listeners[name]=fn;},createElement:tag=>tag==='canvas'?{getContext:()=>({drawImage(){}}),toDataURL:()=>'data:image/png;base64,synthetic'}:new Element()},fetch,Image,crypto:{randomUUID},URL:{createObjectURL:()=>{const u='blob:synthetic-'+urls.length;urls.push(u);return u;},revokeObjectURL(){}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}});
  return{node,storage,locks,requests,jobs,changeProfile:value=>{profileId=value;listeners["bb3d:profile-change"]();},setStatus:value=>{status=value;},activate:async()=>{}};
 }
 test('AI client stays hidden when disabled and never sends a photo without consent',async()=>{
@@ -58,4 +58,8 @@ test('An expired pending job is cleared and two completed versions disable furth
 test('Hockey uses the same paid allowance and sends its own server-validated sport recipe',async()=>{
  const c=await client();c.changeProfile('future-star-hockey');c.node('ai-consent').checked=true;assert.equal(c.node('ai-photo-panel').hidden,false);await c.node('ai-generate').onclick();const request=c.requests.find(r=>r.action==='generate');assert.equal(request.body.profileId,'future-star-hockey');assert.equal(request.body.club,'Egen hockeyklubb');assert.equal(request.body.purchaseId,'purchase-test');assert.equal(request.body.slotId,'slot-test');assert(!('code' in request.body));
  c.changeProfile('future-star-football');await c.node('ai-use').onclick();assert.match(c.node('ai-photo-status').textContent,/andra motivval/);
+});
+
+test('Server-advertised preview enables two attempts before payment',async()=>{
+ const c=await client({paid:false,preview:true});await c.activate();c.node('ai-consent').checked=true;assert.equal(c.node('ai-generate').disabled,false);await c.node('ai-generate').onclick();await c.node('ai-generate').onclick();assert.equal(c.requests.filter(r=>r.action==='generate').length,2);assert.equal(c.node('ai-generate').disabled,true);
 });
