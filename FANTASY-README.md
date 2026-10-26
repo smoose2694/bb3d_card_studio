@@ -1,3 +1,10 @@
+## Ny kortdesign
+Monster har två stilar: klassisk gul ram med separat illustration och Full art med metallisk ram. Element, HP, energiikoner, förmåga och attack delar samma redigerbara data. Tränare har egen Full art-layout med silverrubrik, namn, stor illustration, tränarinsats och förmåga; HP och attackstyrka visas inte. Kortens BB3D-rubrik är borttagen. Kundinformationen om gloss och förtryckta baksidor är borttagen. Båda layouttyperna använder befintlig PNG-export och 63 × 88 mm-validering.
+
+Filvalet återställs vid byte av motivplats, så samma foto kan väljas igen. Lagringsadaptern kontrollerar att SDK-felklasser finns innan instanceof används; konflikter behåller sin ursprungliga feltyp och återförsökbarhet.
+
+Ett verkligt bildförsök reserverades under operatörsprovet, men servern svarade med TypeError och ingen färdig AI-bild kunde granskas. Visuell kvalitet från bildtjänsten och ett fysiskt provtryck är därför ännu inte verifierade.
+
 ## Publicerad integration
 Fantasy delar nu köp, Swish, betalkontroll och två API-försök per 4-pack med sportkorten. Tränare/monster, eld/vatten/skog/blixt. PNG-framsida 1488x2079 med pHYs 23619/23625 för 63x88mm, inget gloss. Kunden väljer foto, godkänner OpenAI-bearbetning, väljer AI-version och godkänner kortet. Resultatet skickas automatiskt privat till admin; inga mejl eller manuell kundexport behövs. Adminvyn Redo att printa visar betalda kompletta köp. Tränare/monster särredovisas i statistiken. Baksidan använder befintligt förtryckt underlag; egen fantasybaksida återstår.
 
