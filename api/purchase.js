@@ -1,2 +1,2 @@
 import {purchaseHandler} from '../lib/purchase-handler.js';
-export default purchaseHandler;
+export default {fetch:purchaseHandler};
