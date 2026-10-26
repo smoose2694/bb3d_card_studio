@@ -15,9 +15,9 @@ class Store{
 function crc(b){let c=0xffffffff;for(const x of b){c^=x;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}return(c^0xffffffff)>>>0;}
 function chunk(t,d){const b=Buffer.alloc(d.length+12);b.writeUInt32BE(d.length);b.write(t,4);d.copy(b,8);b.writeUInt32BE(crc(b.subarray(4,b.length-4)),b.length-4);return b;}
 function printPNG(){const h=Buffer.alloc(13),density=Buffer.alloc(9);h.writeUInt32BE(1488);h.writeUInt32BE(2079,4);h[8]=8;h[9]=2;density.writeUInt32BE(23619);density.writeUInt32BE(23625,4);density[8]=1;return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',h),chunk('pHYs',density),chunk('IDAT',deflateSync(Buffer.alloc((1488*3+1)*2079))),chunk('IEND',Buffer.alloc(0))]);}
-test('Only the prepared football profile can be ordered and clubs remain football-specific',()=>{
+test('Prepared profiles enforce their own clubs and positions',()=>{
  for(const club of cardProfile().clubs)assert.equal(C.details({...raw,club}).profileId,FOOTBALL_PROFILE);
- for(const profileId of ['future-star-hockey','pokemon','__proto__',null,{},''])assert.throws(()=>C.details({...raw,profileId}),e=>e.status===400);
+ for(const profileId of ['future-star-basketball','pokemon','__proto__',null,{},''])assert.throws(()=>C.details({...raw,profileId}),e=>e.status===400);
  assert.throws(()=>C.details({...raw,club:'Unprepared club'}),e=>e.status===400);
  assert.throws(()=>C.details({...raw,position:'CENTER'}),e=>e.status===400);
  const d=C.details({...raw,profileId:FOOTBALL_PROFILE,sport:'Hockey',product:'Spoofed',amountSEK:1});assert.equal(d.amountSEK,100);assert(!('sport' in d));
@@ -25,7 +25,7 @@ test('Only the prepared football profile can be ordered and clubs remain footbal
 test('New orders save server-owned sport/product identity without changing Swish price',async()=>{
  const s=new Store(),id=randomUUID();s.bytes=printPNG();const hash=C.sha(s.bytes);
  const receipt=await C.receipt(s,id,'fixture-customer',{details:{...raw,sport:'Spoofed'},imageHash:hash});
- const saved=(await s.read(C.recordPath(id))).data;assert.deepEqual(saved.card,cardIdentity(cardProfile()));assert.equal(saved.details.profileId,FOOTBALL_PROFILE);
+ const saved=(await s.read(C.recordPath(id))).data;assert.deepEqual(saved.card,cardIdentity(cardProfile(),raw.position));assert.equal(saved.details.profileId,FOOTBALL_PROFILE);
  assert.equal(receipt.payment.amountSEK,100);assert.equal(receipt.payment.recipient,'1233661089');
  await C.receipt(s,id,'fixture-customer',{details:raw,imageHash:hash});assert.equal(s.binaryReads,1);
  const stat=(await s.read('statistics/'+id+'.json')).data;assert.equal(stat.sportId,'football');assert.equal(stat.product,'Future Star · 4-pack');
@@ -45,4 +45,24 @@ test('Historical football and saved future sport snapshots keep distinct sales i
  const futureCard={profileId:'synthetic-handball',productId:'future-star-four-pack',product:'Future Star · 4-pack',sportId:'handball',sport:'Handboll'};
  const future=salesRecord({...order,card:futureCard});assert.equal(future.sport,'Handboll');assert.equal(future.profileId,'synthetic-handball');
  const stats=aggregateSales([old,future]);assert.equal(stats.paidSEK,200);assert.equal(stats.products.length,2);assert(stats.products.some(p=>p.name.includes('Handboll')));assert(stats.products.some(p=>p.name.includes('Fotboll')));
+});
+
+test('Hockey orders enforce hockey clubs and positions and retain goalie labels, price and sales identity',async()=>{
+ const s=new Store(),id=randomUUID();s.bytes=printPNG();const hash=C.sha(s.bytes),hockey={...raw,profileId:'future-star-hockey',club:'Egen hockeyklubb',clubName:'Synthetic hockey club',position:'MÅLVAKT',quantity:8};
+ assert.throws(()=>C.details({...hockey,club:'FBK Karlstad'}),e=>e.status===400);
+ assert.throws(()=>C.details({...hockey,position:'ANFALLARE'}),e=>e.status===400);
+ assert.throws(()=>C.details({...raw,club:'Egen hockeyklubb'}),e=>e.status===400);
+ const receipt=await C.receipt(s,id,'fixture-hockey',{details:hockey,imageHash:hash});assert.equal(receipt.payment.amountSEK,200);assert.equal(receipt.payment.recipient,'1233661089');
+ await C.receipt(s,id,'fixture-hockey',{details:hockey,imageHash:hash});assert.equal(s.binaryReads,1);
+ const saved=(await s.read(C.recordPath(id))).data;assert.equal(saved.card.sport,'Hockey');assert.deepEqual(saved.card.statLabels,['REFLEXER','PLOCK','PLACERING','RÖRLIGHET','PUCKSPEL','LAGANDA']);assert.equal(C.summary(saved).sport,'Hockey');
+ const footballId=randomUUID();await C.receipt(s,footballId,'fixture-football',{details:raw,imageHash:hash});
+ const records=[saved,(await s.read(C.recordPath(footballId))).data].map(order=>salesRecord({...order,paid:true,paidAt:new Date().toISOString()}));
+ const stats=aggregateSales(records);assert.equal(stats.paidSEK,300);assert.equal(stats.paidCards,12);assert.equal(stats.products.length,2);assert(stats.products.some(p=>p.name.endsWith('Hockey')));
+ await assert.rejects(()=>C.receipt(s,id,'fixture-hockey',{details:{...raw,clubName:'Synthetic hockey club',position:'MÅLVAKT',quantity:8},imageHash:hash}),e=>e.status===409);
+});
+
+test('Custom clubs are grouped by their saved names without treating names as object properties',()=>{
+ const order={id:randomUUID(),createdAt:new Date().toISOString(),paid:true,paidAt:new Date().toISOString(),status:'new',card:cardIdentity(cardProfile('future-star-hockey')),details:C.details({...raw,profileId:'future-star-hockey',club:'Egen hockeyklubb',clubName:'Synthetic hockey club',position:'CENTER'})};
+ const records=[salesRecord(order),salesRecord({...order,details:{...order.details,clubName:'__proto__'}})];
+ const stats=aggregateSales(records);assert.equal(stats.salesByClub.length,2);assert.equal(stats.clubs['__proto__'],4);assert.equal(stats.clubs['Synthetic hockey club'],4);assert.equal(stats.paidSEK,200);
 });

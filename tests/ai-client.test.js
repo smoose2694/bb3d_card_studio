@@ -12,7 +12,7 @@ class Element{
  append(node){this.children.push(node);}
 }
 async function client({available=true,saved=null,networkFailure=false}={}){
- const nodes=new Map(),storage=new Map(),locks=[],requests=[],jobs=new Map(),urls=[];
+ const nodes=new Map(),storage=new Map(),locks=[],requests=[],jobs=new Map(),urls=[],listeners={};let profileId="future-star-football";
  if(saved)storage.set(KEY,JSON.stringify({id:saved}));
  const node=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id);};
  node('ai-photo-panel').hidden=true;node('ai-result').hidden=true;
@@ -32,10 +32,10 @@ async function client({available=true,saved=null,networkFailure=false}={}){
   if(action==='result')return new Response(new Blob(['synthetic image'],{type:'image/png'}));
   throw Error('Unexpected fixture request');
  };
- const editor={ready:Promise.resolve(),getConnection:()=>({orders:true}),getPhoto:()=>'data:image/png;base64,synthetic',getClub:()=>'FBK Karlstad',busy:value=>locks.push(value)};
+ const editor={ready:Promise.resolve(),getConnection:()=>({orders:true}),getPhoto:()=>'data:image/png;base64,synthetic',getClub:()=>'FBK Karlstad',getProfile:()=>profileId,busy:value=>locks.push(value)};
  class Image{constructor(){this.width=100;this.height=100;}set src(value){queueMicrotask(()=>this.onload());}}
- await runInNewContext(source,{window:{BB3D_AI_EDITOR:editor},document:{getElementById:node,createElement:tag=>tag==='canvas'?{getContext:()=>({drawImage(){}}),toDataURL:()=>'data:image/png;base64,synthetic'}:new Element()},fetch,Image,crypto:{randomUUID},URL:{createObjectURL:()=>{const u='blob:synthetic-'+urls.length;urls.push(u);return u;},revokeObjectURL(){}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}});
- return{node,storage,locks,requests,jobs,setStatus:value=>{status=value;},activate:async()=>{node('ai-code').value=CODE;await node('ai-claim').onclick();}};
+ await runInNewContext(source,{window:{BB3D_AI_EDITOR:editor},document:{getElementById:node,addEventListener:(name,fn)=>{listeners[name]=fn;},createElement:tag=>tag==='canvas'?{getContext:()=>({drawImage(){}}),toDataURL:()=>'data:image/png;base64,synthetic'}:new Element()},fetch,Image,crypto:{randomUUID},URL:{createObjectURL:()=>{const u='blob:synthetic-'+urls.length;urls.push(u);return u;},revokeObjectURL(){}},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)}});
+ return{node,storage,locks,requests,jobs,changeProfile:value=>{profileId=value;listeners["bb3d:profile-change"]();},setStatus:value=>{status=value;},activate:async()=>{node('ai-code').value=CODE;await node('ai-claim').onclick();}};
 }
 test('AI client stays hidden when disabled and never sends a photo without consent',async()=>{
  const off=await client({available:false});assert.equal(off.node('ai-photo-panel').hidden,true);assert.deepEqual(off.requests.map(r=>r.action),['config']);
@@ -53,4 +53,11 @@ test('An expired pending job is cleared and two completed versions disable furth
  const c=await client({saved:randomUUID()});await c.activate();assert.equal(c.storage.has(KEY),false);c.node('ai-consent').checked=true;
  await c.node('ai-generate').onclick();await c.node('ai-generate').onclick();assert.equal(c.requests.filter(r=>r.action==='generate').length,2);assert.equal(c.node('ai-generate').disabled,true);assert.equal(c.node('ai-versions').children.length,2);
  const image=c.node('ai-result-image'),first=c.node('ai-versions').children[0];first.onclick();assert.equal(image.src,'blob:synthetic-0');
+});
+
+test('Football AI cannot generate or apply a result while the editor is set to hockey',async()=>{
+ const c=await client();await c.activate();c.node('ai-consent').checked=true;c.changeProfile('future-star-hockey');
+ assert.equal(c.node('ai-photo-panel').hidden,true);assert.equal(c.node('ai-generate').disabled,true);
+ await c.node('ai-generate').onclick();await c.node('ai-use').onclick();assert.equal(c.requests.filter(r=>r.action==='generate').length,0);
+ c.changeProfile('future-star-football');assert.equal(c.node('ai-photo-panel').hidden,false);assert.equal(c.node('ai-generate').disabled,false);
 });

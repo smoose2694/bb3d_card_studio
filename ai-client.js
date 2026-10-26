@@ -3,6 +3,9 @@
   const editor=window.BB3D_AI_EDITOR;if(!editor)return;await editor.ready;
   const $=id=>document.getElementById(id),KEY='bb3d-ai-job-v1';let available=false,quota=null,resultURL=null,working=false,claimed=false,pending=null;
   const versions=[];
+  const supportsAI=()=>!editor.getProfile||editor.getProfile()==='future-star-football';
+  const panel=()=>{$('ai-photo-panel').hidden=!supportsAI()||(!available&&!pending);};
+  document.addEventListener('bb3d:profile-change',()=>{panel();refresh();});
   try{const saved=JSON.parse(sessionStorage.getItem(KEY)||'null');if(saved&&typeof saved.id==='string')pending={id:saved.id,status:'running'};}catch{}
   const message=text=>$('ai-photo-status').textContent=text;
   const remember=()=>{try{if(pending)sessionStorage.setItem(KEY,JSON.stringify({id:pending.id}));else sessionStorage.removeItem(KEY);}catch{}};
@@ -10,7 +13,7 @@
   const post=(action,data)=>api(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
   function refresh(){
     const waiting=pending?.status==='running';$('ai-generate').textContent=waiting?'Kontrollera senaste försöket':quota?.remaining===1?'Skapa en ny version':'Skapa AI-foto';
-    $('ai-generate').disabled=working||(!waiting&&(!available||!claimed||!quota?.remaining||quota?.attemptsRemaining===0));
+    $('ai-generate').disabled=!supportsAI()||working||(!waiting&&(!available||!claimed||!quota?.remaining||quota?.attemptsRemaining===0));
     $('ai-claim').disabled=working;$('ai-use').disabled=working||!resultURL;
     if(quota)$('ai-quota').textContent=quota.remaining+' färdiga bilder kvar · '+quota.attemptsRemaining+' API-försök kvar. Tekniska fel kan också förbruka API-försök.';
   }
@@ -36,6 +39,7 @@
   $('ai-generate').onclick=async()=>{
     if(working)return;let locked=false,previous=pending;
     try{
+      if(!supportsAI())throw Error('AI-foto för hockey är inte öppet ännu.');
       if(!$('ai-code').value.trim())throw Error('Ange din mässkod.');
       if(pending?.status==='running'){working=true;refresh();await resume();return;}
       if(!$('ai-consent').checked)throw Error('Godkänn att fotot skickas till OpenAI först.');if(!claimed)throw Error('Aktivera mässkoden först.');
@@ -47,7 +51,7 @@
     }catch(e){if(e.status===410){pending=null;claimed=false;remember();}else if(!e.unknown&&!e.jobId&&e.status){pending=previous;remember();}message(e.message);}
     finally{if(locked)editor.busy(false);working=false;refresh();}
   };
-  $('ai-use').onclick=async()=>{try{if(!resultURL)return;const blob=await(await fetch(resultURL)).blob(),src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Bilden kunde inte läsas.'));reader.readAsDataURL(blob);});await editor.apply(src);message('AI-bilden används nu. Granska kortet och godkänn beställningen.');}catch(e){message(e.message);}};
-  try{if(!editor.getConnection()?.orders)return;const config=await api('config');available=config.available;if(available||pending){$('ai-photo-panel').hidden=false;if(pending)message('Ett tidigare AI-försök kan finnas. Ange samma mässkod och aktivera den för att kontrollera resultatet.');refresh();}}
+  $('ai-use').onclick=async()=>{try{if(!supportsAI())throw Error('Välj fotboll för att använda detta AI-motiv.');if(!resultURL)return;const blob=await(await fetch(resultURL)).blob(),src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Bilden kunde inte läsas.'));reader.readAsDataURL(blob);});await editor.apply(src);message('AI-bilden används nu. Granska kortet och godkänn beställningen.');}catch(e){message(e.message);}};
+  try{if(!editor.getConnection()?.orders)return;const config=await api('config');available=config.available;if(available||pending){panel();if(pending)message('Ett tidigare AI-försök kan finnas. Ange samma mässkod och aktivera den för att kontrollera resultatet.');refresh();}}
   catch{}
 })();
