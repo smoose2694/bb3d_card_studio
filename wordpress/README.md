@@ -1,4 +1,4 @@
-# BB3D Card Studio för WordPress/Loopia – testversion 0.2.0
+# BB3D Card Studio för WordPress/Loopia – testversion 0.2.1
 
 En gemensam sida för sportkort och Pokémonkort. Kunden byter korttyp utan sidbyte, med gemensamt köp- och AI-flöde. Svart standard för fotboll, 18 monsterelement, tränare utan element, synligt AI-samtycke och låst baksida. Innebandy och handboll ingår.
 
@@ -21,7 +21,7 @@ WooCommerce används för befintlig inloggning och behörighet. Kortköpen ligge
 ## Installation på en testplats
 
 1. Säkerhetskopiera webbplats och databas via Loopia. Använd helst en separat WordPress-testinstallation.
-2. Uppdatering från 0.1.0: avinstallera inte det befintliga tillägget. Ladda upp `bb3d-card-studio-wordpress-0.2.0.zip` via **Tillägg → Lägg till nytt → Ladda upp tillägg** och välj **Byt ut det nuvarande mot det uppladdade** om WordPress frågar. Aktivera om det behövs.
+2. Uppdatering från 0.1.0 eller 0.2.0: avinstallera inte det befintliga tillägget. Ladda upp `bb3d-card-studio-wordpress-0.2.1.zip` via **Tillägg → Lägg till nytt → Ladda upp tillägg** och välj **Byt ut det nuvarande mot det uppladdade** om WordPress frågar. Aktivera om det behövs.
 3. Öppna **BB3D kort** i WordPress. Tillägget börjar i testläge: endast behöriga inloggade WordPress-användare har tillgång.
 4. Kontrollera att privat bildlagring är tillgänglig. Standardplatsen är en egen katalog bredvid webbplatsens publika dokumentrot. Den skapas med privata rättigheter. Om webbhotellet inte tillåter detta måste en skrivbar privat katalog utanför webbroot anges med `BB3D_CARD_PRIVATE_DIR` i `wp-config.php`. Publika kataloger avvisas; ingen fallback till mediabiblioteket finns.
 5. Öppna **BB3D kort → Anslut OpenAI**, klistra in din API-nyckel och tryck **Spara API-nyckel**. Fältet är bara tillgängligt för WordPress-administratörer. Nyckeln lagras krypterat med AES-256-GCM och webbplatsens befintliga auth-salt, och visas aldrig igen. En befintlig `BB3D_OPENAI_API_KEY` i `wp-config.php` fungerar fortfarande och har företräde. Om webbplatsens salts byts behöver den sparade nyckeln anges på nytt. Nyckeln ingår aldrig i ZIP-filen, JavaScript eller API-svar. Klistra inte in nyckeln i en chatt. AI är avstängd från början med ett initialt dygnstak på två försök.
@@ -48,7 +48,7 @@ Först därefter: **Öppna för kunder efter godkänt test**. Befintlig Vercel-a
 ```sh
 npm run build
 node scripts/build-wordpress.mjs
-node scripts/package-wordpress.mjs /absolute/path/bb3d-card-studio-wordpress-0.2.0.zip
+node scripts/package-wordpress.mjs /absolute/path/bb3d-card-studio-wordpress-0.2.1.zip
 node --test wordpress/tests/runtime.test.mjs
 node wordpress/tests/create-fixtures.mjs
 BB3D_WP_TEST_ROOT=/path/to/disposable/wordpress php wordpress/tests/integration.php
@@ -66,3 +66,9 @@ PHP 8.2+, WordPress 6.5+, mbstring och zlib krävs. Det lokala integrationsteste
 6. Öppna först därefter för kunder och sätt ett dygnstak som passar verksamheten. Ett osäkert bildförsök ska kontrolleras innan ett nytt anrop görs.
 
 API-nyckeln är inte ansluten eller provkörd av att ZIP-filen uppdateras. Testerna använder syntetiska data och mockade OpenAI-svar; verklig bildgenerering måste verifieras på kontot.
+
+## Version 0.2.1
+
+Dygnstaket för AI kan ställas mellan 0 och 5 000 försök. Uppdateringen behåller ditt befintliga tak, din sparade API-nyckel och dina beställningar. Välj önskat tak under Produktionskön → AI-foton på mässan och spara AI-inställningarna.
+
+Extra försök: öppna kundens köp i produktionskön, markera Swish kontrollerad och tryck **Ge 2 extra AI-försök** under aktuellt 4-pack. Knappen visas tills motivet har skickats in och kan användas medan beställningens status är Ny. Kunden trycker **Kontrollera betalning** för att hämta de extra försöken. Tilldelningen höjer inte dygnstaket.

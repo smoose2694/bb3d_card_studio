@@ -83,4 +83,9 @@ foreach(['future-star-floorball'=>'Egen innebandyklubb','future-star-handball'=>
     $value=BB3D\Cards\details(['profileId'=>$profile,'approved'=>true,'player'=>'TEST','customerName'=>'TEST','contact'=>'','club'=>$club,'clubName'=>'MIN KLUBB','position'=>$profile==='future-star-handball'?'MITTNIO':'FORWARD','stats'=>[90,90,90,90,90,90],'total'=>90]);check($value['profileId']===$profile,'New sport order validated');
 }
 $key='sk-'.str_repeat('SyntheticOnly',4);$sealed=BB3D\Cards\seal_api_key($key);check(strpos($sealed,$key)===false,'Key is not stored in plain text');check(BB3D\Cards\unseal_api_key($sealed)===$key,'Key decrypts server-side');check(BB3D\Cards\unseal_api_key(substr($sealed,0,-8))===null,'Tampered key fails closed');
+// Operator may choose a larger daily cap without resetting usage or grants.
+$before=$s->control();
+foreach([0,101,5000] as $limit){$res=endpoint(request('ai','settings','POST',['enabled'=>false,'dailyLimit'=>$limit]));check($res->get_status()===200&&$res->get_data()['dailyLimit']===$limit,'Daily cap accepts supported limits');}
+foreach([-1,5001,1.5,'5000'] as $limit){$res=endpoint(request('ai','settings','POST',['enabled'=>false,'dailyLimit'=>$limit]));check($res->get_status()===400,'Daily cap rejects invalid limits');}
+$after=$s->control();check($after['settings']['dailyLimit']===5000,'Invalid settings preserve saved cap');check($after['usage']===$before['usage']&&$after['grants']===$before['grants'],'Changing cap preserves usage and customer attempts');
 echo "WordPress ".get_bloginfo('version').": $checks integration assertions passed (isolated SQLite-backed wpdb; Loopia MariaDB test remains).\n";

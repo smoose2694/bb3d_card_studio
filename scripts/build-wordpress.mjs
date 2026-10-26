@@ -16,7 +16,7 @@ for(const f of ['studio.html','studio.css','studio.js','card-back.js','fantasy-e
  let s=f==='fantasy-elements.js'?'window.BB3D_ELEMENTS='+JSON.stringify(elements)+';':f==='card-profiles.js'?'window.BB3D_CARD_PROFILES='+JSON.stringify(cardProfiles)+';':fs.readFileSync(f,'utf8');
  if(f.endsWith('.html')){
   s=s.replace(/<script src="\/?(?:upload|install)\.js" defer><\/script>/g,'').replace(/<link rel="manifest"[^>]*>/g,'');
-  s=s.replace(/(src|href)="\/?([\w.-]+\.(?:js|css)|icons\/[^" ]+)"/g,'$1="__BB3D_ASSETS__$2?ver=0.2.0"');
+  s=s.replace(/(src|href)="\/?([\w.-]+\.(?:js|css)|icons\/[^" ]+)"/g,'$1="__BB3D_ASSETS__$2?ver=0.2.1"');
   s=s.replaceAll('https://bb3d-card-studio.vercel.app/bestallningar','__BB3D_ADMIN__').replaceAll('bb3d-card-studio.vercel.app/bestallningar','BB3D:s produktionskö');
   s=s.replaceAll('href="/fantasy"','href="__BB3D_FANTASY__"').replaceAll('href="/bestallningar"','href="__BB3D_ADMIN__"').replaceAll('href="/"','href="__BB3D_STUDIO__"').replaceAll('href="./"','href="__BB3D_STUDIO__"');
   s=s.replace('Använd administratörslösenordet du valde i Vercel.','Logga in med ditt behöriga WordPress-konto.').replace('Aktivitet uppdateras ungefär varje minut när kundens sida är synlig.','Aktivitet visas när kunden väljer köp, motivplats eller uppdaterar sitt köp.').replace('AI-foton är aktiverade.','AI-foton är aktiverade.');
