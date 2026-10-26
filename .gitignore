@@ -7,3 +7,7 @@ node_modules/
 
 
 public/
+wordpress/bb3d-card-studio/assets/
+wordpress/bb3d-card-studio/catalogue.json
+wordpress/tests/fixtures/
+wordpress/bb3d-card-studio/README.md
