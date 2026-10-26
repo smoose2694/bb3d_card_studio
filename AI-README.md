@@ -1,3 +1,7 @@
+## Aktuellt: betalda 4-pack ersätter mässkoder
+Kunden köper 1–25 4-pack före motivarbetet. Serverpris 100 kr/pack, Swish 1233661089. Operatörens befintliga betalningsmarkering öppnar en stabil grant per motivplats med 2 API-försök totalt, även tekniska fel. Två lyckade bilder är övre gräns. Betalningsrättning, omstart och nya flikar återställer inte försök. Dygnstak och cooldown består. API-voucher svarar 410. Äldre interna kodtester behålls för kontrollmotorns regressioner. Inga kundkoder i gränssnittet. Produktion kräver betalt och alla motiv godkända. Ett köp räknas en gång i försäljningsstatistiken; varje pack bidrar med sin sport/förening efter godkännande. Gamla beställningar förblir läsbara.
+
+### Historisk implementation (ersatt där ovan anges)
 # AI-fotoflöde för BB3D
 
 AI är avstängt som standard. Ingen bild skickas automatiskt när kunden laddar upp sitt foto. OpenAI-nyckeln ska bara finnas som `OPENAI_API_KEY` på servern i Vercel, för Production och Preview.
