@@ -10,7 +10,7 @@ function el(tag,text,className){const n=document.createElement(tag);if(text!==un
 function showLogin(message=''){
   orders=[];$('orders').replaceChildren();$('sales-metrics').replaceChildren();
   for(const id of ['product-sales','club-sales','daily-sales'])$(id).replaceChildren();
-  $('statistics').textContent='';$('admin-pane').hidden=true;$('login-pane').hidden=false;$('login-status').textContent=message;
+  $('statistics').textContent='';document.dispatchEvent(new Event('bb3d:admin-logout'));$('admin-pane').hidden=true;$('login-pane').hidden=false;$('login-status').textContent=message;
 }
 async function api(path,options){
   const r=await fetch(path,options);let data;
@@ -68,7 +68,7 @@ async function refresh(){
     const data=await api('/api/orders');
     const query=new URLSearchParams();if(activeRange.from)query.set('from',activeRange.from);if(activeRange.to)query.set('to',activeRange.to);
     const stats=await api('/api/stats?'+query.toString());
-    if($('admin-pane').hidden)return;orders=data.orders;render();renderStats(stats);
+    if($('admin-pane').hidden)return;orders=data.orders;render();renderStats(stats);document.dispatchEvent(new Event('bb3d:admin-ready'));
     $('status').textContent='Uppdaterad '+new Intl.DateTimeFormat('sv-SE',{timeStyle:'short',timeZone:'Europe/Stockholm'}).format(new Date());
   }catch(e){$('status').textContent=e.message;}
   finally{loading=false;$('refresh').disabled=false;$('apply-period').disabled=false;if(refreshQueued){refreshQueued=false;refresh();}}

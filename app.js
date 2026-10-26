@@ -23,11 +23,11 @@
   let state = {name:'SPELARNAMN',club:'FBK Karlstad',clubName:'FBK Karlstad',position:'ANFALLARE',total:87,
     stats:[88,84,81,91,67,99],primary:'#c80b2c',accent:'#ffffff',photo:null,logo:null,zoom:100,panX:0,panY:0};
   let side = 'front';
-  let photoSize = null;
+  let photoSize = null, sourcePhoto = null;
   let ready = false;
   let exporting = false;
   let sending = false, connection = null, pending = null;
-  let photoRead = 0, logoRead = 0;
+  let photoRead = 0, logoRead = 0, aiWorking = false;
   const measure = document.createElement('canvas').getContext('2d');
   const numeric = (value,min,max,fallback=min) => {
     const n = Number(value);
@@ -185,11 +185,11 @@
       if(token!==(kind==='photo'?photoRead:logoRead))return;
       if(sending)throw new Error('Vänta tills beställningen är klar innan bilden ändras.');
       state[kind]=result.data;
-      if(kind==='photo') {photoSize=result;state.zoom=100;state.panX=0;state.panY=0;}
+      if(kind==='photo') {sourcePhoto=result.data;photoSize=result;state.zoom=100;state.panX=0;state.panY=0;}
       syncForm();status('Bilden är inläst. Den skickas till BB3D först när du bekräftar beställningen.');
     } catch(e) {status(e.message,true);} finally {photoReadPending=Math.max(0,photoReadPending-1);$(kind).value='';}
   });
-  $('clear-photo').addEventListener('click',()=>{photoRead++;state.photo=null;photoSize=null;$('photo').value='';render();status('Fotot är borttaget.');});
+  $('clear-photo').addEventListener('click',()=>{photoRead++;state.photo=null;sourcePhoto=null;photoSize=null;$('photo').value='';render();status('Fotot är borttaget.');});
   for(const which of ['front','back']) $(`show-${which}`).addEventListener('click',()=>{
     side=which;for(const s of ['front','back'])$(`show-${s}`).setAttribute('aria-pressed',String(s===side));render();
   });
@@ -233,7 +233,7 @@
     }finally{exporting=false;}
   }
   async function connectOrders(){try{const r=await fetch('/api/config');if(!r.ok)throw Error();connection=await r.json();$('submit-order').disabled=!connection.orders;$('order-status').textContent=connection.orders?'Redo att skicka din beställning till BB3D.':'Beställningsmottagningen är inte ansluten ännu. Inget kan skickas.';}catch{$('submit-order').disabled=true;$('order-status').textContent='Ingen anslutning till BB3D. Försök ladda om sidan.';}}
-  async function submitOrder(event){event.preventDefault();if(sending)return;try{
+  async function submitOrder(event){event.preventDefault();if(sending)return;try{if(aiWorking)throw Error('Vänta tills AI-fotot är färdigt.');
     if(!connection?.orders)throw Error('Beställningsmottagningen är inte ansluten.');if(!state.photo)throw Error('Ladda upp ett spelarfoto först.');if(photoReadPending)throw Error('Vänta tills bilden har lästs in.');if(!state.name.trim()||state.name.trim().toUpperCase()==='SPELARNAMN')throw Error('Ange spelarens namn på kortet.');if(!$('approve').checked)throw Error('Granska kortet och godkänn förhandsvisningen först.');if(!$('editor-form').reportValidity())return;
     const details={customerName:$('customer-name').value.trim(),contact:$('contact').value.trim(),quantity:Number($('quantity').value)*4,approved:true,player:state.name.trim(),club:state.club,clubName:state.clubName,position:state.position,stats:[...state.stats],total:state.total};
     sending=true;const controls=[...document.querySelectorAll('input,select,button')],previous=controls.map(n=>n.disabled);controls.forEach(n=>n.disabled=true);$('submit-order').textContent='Skickar ditt kort…';$('receipt').hidden=true;$('payment').hidden=true;$('swish-link').removeAttribute('href');side='front';render();
@@ -256,5 +256,14 @@
       status('Redo. Ladda upp en bild och skapa ditt kort.');
     }catch(e){status('Kunde inte starta studion: '+e.message,true);}
   }
-  init();
+  let aiControls=[];
+  const startup=init();
+  window.BB3D_AI_EDITOR={
+    ready:startup,
+    getPhoto:()=>sourcePhoto||state.photo,
+    getClub:()=>state.club,
+    getConnection:()=>connection,
+    busy:value=>{if(value){if(sending||photoReadPending)throw Error('Vänta tills bilden eller beställningen är färdig.');aiWorking=true;aiControls=[...document.querySelectorAll('#editor-form input,#editor-form select,#editor-form button')].map(node=>({node,disabled:node.disabled}));for(const item of aiControls)item.node.disabled=true;}else{for(const item of aiControls)item.node.disabled=item.disabled;aiWorking=false;aiControls=[];}},
+    apply:async src=>{if(sending||aiWorking)throw Error('Vänta tills det pågående arbetet är färdigt.');const image=await loadImage(src);photoRead++;state.photo=src;photoSize={width:image.width,height:image.height};state.zoom=100;state.panX=0;state.panY=0;syncForm();status('AI-bilden används på kortet. Granska och godkänn innan du beställer.');}
+  };
 })();
