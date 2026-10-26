@@ -49,7 +49,7 @@ async function changeOrder(order,patch){
 }
 async function giveExtra(order,slot){
  if(saving||loading)return;saving=true;for(const input of document.querySelectorAll('[data-order-control]'))input.disabled=true;const key='bb3d-bonus:'+order.id+':'+slot.id;let requestId=sessionStorage.getItem(key);if(!requestId){requestId=crypto.randomUUID();sessionStorage.setItem(key,requestId);}let message;
- try{const result=await api('/api/ai?action=bonus',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({purchaseId:order.id,slotId:slot.id,requestId})});sessionStorage.removeItem(key);message='Två extra AI-försök tilldelade till 4-pack '+(order.slots.findIndex(s=>s.id===slot.id)+1)+'. Kunden ser dem inom cirka 15 sekunder.'+(result.dailyCapReached?' Dagens gemensamma AI-tak är nått. Kontrollera dygnstaket ovan innan kunden försöker igen.':'');}
+ try{const result=await api('/api/ai?action=bonus',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({purchaseId:order.id,slotId:slot.id,requestId})});sessionStorage.removeItem(key);message='Två extra AI-försök tilldelade till 4-pack '+(order.slots.findIndex(s=>s.id===slot.id)+1)+'. Be kunden trycka Kontrollera betalning / uppdatera.'+(result.dailyCapReached?' Dagens gemensamma AI-tak är nått. Kontrollera dygnstaket ovan innan kunden försöker igen.':'');}
  catch(e){message=e.message;}finally{saving=false;}await refresh();$('status').textContent=message;
 }
 function render(){
@@ -104,6 +104,7 @@ $('login-form').onsubmit=async event=>{
 };
 $('logout').onclick=async()=>{try{await api('/api/session',{method:'DELETE'});showLogin('Du är utloggad.');}catch(e){$('status').textContent=e.message;}};
 $('refresh').onclick=refresh;$('filter').onchange=render;
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});setInterval(()=>{if(!document.hidden)refresh();},30000);
+// Refresh after actions and on request; an open admin tab must not continuously
+// rescan orders, presence and sales records against the Blob allowance.
 setPeriod();
 (async()=>{try{const session=await api('/api/session');if(session.admin){$('login-pane').hidden=true;$('admin-pane').hidden=false;await refresh();}else showLogin();}catch(e){showLogin(e.message);}})();
